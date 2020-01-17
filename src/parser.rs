@@ -1,4 +1,8 @@
-use nom;
+use nom:: {
+    bytes::complete::{take_while},
+    error::{ParseError},
+    IResult,
+};
 
 struct Parsed {
     desc: String,
@@ -17,4 +21,9 @@ enum Arg {
     Id(u64),
     Number(f64),
     Control(String),
+}
+
+fn sp<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
+    let chars = " \t\r\n";
+    take_while(move |c| chars.contains(c))(i)
 }
