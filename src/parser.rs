@@ -1,7 +1,7 @@
 use nom:: {
     bytes::complete::{escaped, take_while},
-    character::complete::{alphanumeric1 as alphanumeric, one_of, char},
-    combinator::{cut},
+    character::complete::{alphanumeric1 as alphanumeric, one_of, char, digit1},
+    combinator::{cut, map},
     error::{ParseError, ErrorKind, context},
     sequence::{preceded, terminated},
     IResult,
@@ -39,6 +39,10 @@ fn string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E
     context("string", preceded(char('\''), cut(terminated(parse_str, char('\'')))))(i)
 }
 
+fn id <'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, u64, E> {
+    context("id", preceded(char('#'), map(digit1, |s: &'a str| { let i: u64 = s.parse().unwrap(); i })))(i)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -46,5 +50,6 @@ mod test {
     #[test]
     fn test() {
         assert_eq!(string::<(&str, ErrorKind)>("'hoge\\n'"), Ok(("", "hoge\\n")));
+        assert_eq!(id::<(&str, ErrorKind)>("#112"), Ok(("", 112)));
     }
 }
