@@ -1,0 +1,11 @@
+symbol = @{ ASCII_ALPHA ~ ( ASCII_ALPHA | ASCII_DIGIT | "_" )* }
+float = @{ ( "+" | "-" )? ~ ASCII_DIGIT ~ "." ~ ASCII_DIGIT* ~ ( "E" ~ "-"? ~ ASCII_DIGIT+ )? }
+string = @{ "'" ~ inner ~ "'" }
+inner = @{ char* }
+char = {
+	!("'" | "\\") ~ ANY
+	| "\\" ~ ("'" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+	| "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+id = @{ "#" ~ symbol }
+control = @{ "." ~ symbol }
