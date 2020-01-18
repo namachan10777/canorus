@@ -19,3 +19,4 @@ tuple = ${ "(" ~ ign ~ value ~ ign ~ ("," ~ ign ~ value ~ ign)* ~ ")" }
 value = { tuple | symbol | float | string | id | control }
 
 desc = { symbol ~ "(" ~ value ~ ("," ~ value)* ~ ")" ~ ";" }
+elem = { id ~ "=" ~ desc }

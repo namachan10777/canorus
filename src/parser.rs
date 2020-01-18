@@ -22,6 +22,12 @@ struct Desc {
     args: Vec<Value>,
 }
 
+#[derive(PartialEq, Debug)]
+struct Elem {
+    id: u64,
+    desc: Desc,
+}
+
 fn value(v: Pair<Rule>) -> Value {
     match v.as_rule() {
         Rule::value => {
@@ -59,6 +65,20 @@ fn desc(d: Pair<Rule>) -> Desc {
     }
 }
 
+fn elem(e: Pair<Rule>) -> Elem {
+    match e.as_rule() {
+        Rule::elem => {
+            let mut inner = e.into_inner();
+            let id = inner.next().unwrap().as_str()[1..].parse().unwrap();
+            Elem {
+                id,
+                desc: desc(inner.next().unwrap()),
+            }
+        },
+        _ => unreachable!(),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -84,6 +104,20 @@ mod test {
                     Value::Tuple(vec![Value::String(String::new())]),
                     Value::String("2;1".to_string()),
                 ]
+            }));
+        assert_eq!(StepParser::parse(Rule::elem,
+            "#20=FACE_BOUND('',#64,.T.);"
+            ).map(|v| elem(v.peek().unwrap())),
+            Ok(Elem{
+                id: 20,
+                desc: Desc {
+                    name: "FACE_BOUND".to_string(),
+                    args: vec![
+                        Value::String("".to_string()),
+                        Value::Id(64),
+                        Value::Control("T.".to_string()),
+                    ],
+                },
             }));
     }
 }
