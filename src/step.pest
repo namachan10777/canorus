@@ -15,4 +15,5 @@ COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 
 ign = _{ (WHITESPACE | COMMENT)* }
 
-desc = ${ "FILE_DESCRIPTION"  ~ ign ~ "(" ~ ign ~  "(" ~ ign ~ string ~ ign ~ ")" ~ ign ~ "," ~ ign ~ string ~ ign ~ ");" }
+tuple = ${ "(" ~ ign ~ value ~ ign ~ ("," ~ ign ~ value ~ ign)* ~ ")" }
+value = { tuple | symbol | float | string | id | control }
