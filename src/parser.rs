@@ -19,7 +19,7 @@ enum Value {
 #[derive(PartialEq, Debug)]
 struct Desc {
     name: String,
-    value: Value,
+    args: Vec<Value>,
 }
 
 fn value(v: Pair<Rule>) -> Value {
@@ -48,11 +48,12 @@ fn value(v: Pair<Rule>) -> Value {
 fn desc(d: Pair<Rule>) -> Desc {
     match d.as_rule() {
         Rule::desc => {
-            println!("{:?}", d);
             let mut inner = d.into_inner();
             let name = inner.next().unwrap().as_str();
-            let value = value(inner.next().unwrap());
-            Desc { name: name.to_string(), value }
+            Desc {
+                name: name.to_string(),
+                args: inner.map(|v| value(v)).collect()
+            }
         },
         _ => unreachable!(),
     }
@@ -79,10 +80,10 @@ mod test {
                 ).map(|v| desc(v.peek().unwrap())), 
             Ok(Desc {
                 name: "FILE_DESCRIPTION".to_string(),
-                value: Value::Tuple(vec![
+                args: vec![
                     Value::Tuple(vec![Value::String(String::new())]),
                     Value::String("2;1".to_string()),
-                ])
+                ]
             }));
     }
 }
