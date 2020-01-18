@@ -7,7 +7,7 @@ char = {
 	| "\\" ~ ("'" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
 	| "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
-id = @{ "#" ~ symbol }
+id = @{ "#" ~ ASCII_DIGIT+ }
 control = @{ "." ~ symbol }
 
 WHITESPACE = _{ " " | "\r" | "\t" | "\n" }
