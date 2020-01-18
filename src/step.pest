@@ -8,7 +8,7 @@ char = {
 	| "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
 id = @{ "#" ~ ASCII_DIGIT+ }
-control = @{ "." ~ symbol }
+control = @{ "." ~ (ASCII_ALPHA | "_" | ".")+ }
 
 WHITESPACE = _{ " " | "\r" | "\t" | "\n" }
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
