@@ -9,3 +9,10 @@ char = {
 }
 id = @{ "#" ~ symbol }
 control = @{ "." ~ symbol }
+
+WHITESPACE = _{ " " | "\r" | "\t" | "\n" }
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+ign = _{ (WHITESPACE | COMMENT)* }
+
+desc = ${ "FILE_DESCRIPTION"  ~ ign ~ "(" ~ ign ~  "(" ~ ign ~ string ~ ign ~ ")" ~ ign ~ "," ~ ign ~ string ~ ign ~ ");" }
