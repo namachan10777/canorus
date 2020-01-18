@@ -16,11 +16,16 @@ enum Value {
     Tuple(Vec<Value>),
 }
 
+#[derive(PartialEq, Debug)]
+struct Desc {
+    name: String,
+    value: Value,
+}
+
 fn value(v: Pair<Rule>) -> Value {
     match v.as_rule() {
         Rule::value => {
             let v = v.into_inner();
-            println!("{:?}", v);
             match v.peek().unwrap().as_rule() {
                 Rule::float => Value::Number(v.as_str().parse().unwrap()),
                 Rule::string => {
@@ -40,6 +45,19 @@ fn value(v: Pair<Rule>) -> Value {
     }
 }
 
+fn desc(d: Pair<Rule>) -> Desc {
+    match d.as_rule() {
+        Rule::desc => {
+            println!("{:?}", d);
+            let mut inner = d.into_inner();
+            let name = inner.next().unwrap().as_str();
+            let value = value(inner.next().unwrap());
+            Desc { name: name.to_string(), value }
+        },
+        _ => unreachable!(),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -54,5 +72,17 @@ mod test {
             Ok(Value::Tuple(vec![Value::Number(1.0), Value::String(String::new()), Value::Id(12)])));
         assert_eq!(StepParser::parse(Rule::value, "('')").map(|v| value(v.peek().unwrap())), 
             Ok(Value::Tuple(vec![Value::String(String::new())])));
+        assert_eq!(StepParser::parse(Rule::desc,
+                "FILE_DESCRIPTION(\
+                /* description */ (''),\
+                /* implementation_level */ '2;1');"
+                ).map(|v| desc(v.peek().unwrap())), 
+            Ok(Desc {
+                name: "FILE_DESCRIPTION".to_string(),
+                value: Value::Tuple(vec![
+                    Value::Tuple(vec![Value::String(String::new())]),
+                    Value::String("2;1".to_string()),
+                ])
+            }));
     }
 }

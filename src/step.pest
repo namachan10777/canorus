@@ -17,3 +17,5 @@ ign = _{ (WHITESPACE | COMMENT)* }
 
 tuple = ${ "(" ~ ign ~ value ~ ign ~ ("," ~ ign ~ value ~ ign)* ~ ")" }
 value = { tuple | symbol | float | string | id | control }
+
+desc = { symbol ~ value ~ ";" }
