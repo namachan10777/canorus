@@ -17,8 +17,9 @@ ign = _{ (WHITESPACE | COMMENT)* }
 tuple = ${ "(" ~ ign ~ value ~ ign ~ ("," ~ ign ~ value ~ ign)* ~ ")" }
 value = { tuple | symbol | float | string | id | control | wildcard }
 
-desc = { symbol ~ "(" ~ value ~ ("," ~ value)* ~ ")" ~ ";" }
-elem = { id ~ "=" ~ desc }
-header = { "HEADER;" ~ desc+ ~ "ENDSEC;" }
+cfg = { "(" ~ desc* ~ ")" }
+desc = { symbol ~ "(" ~ ( value ~ ("," ~ value)* )? ~ ")" }
+elem = { id ~ "=" ~ ( desc | cfg ) ~ ";"}
+header = { "HEADER;" ~ ( desc ~ ";" )+ ~ "ENDSEC;" }
 data = { "DATA;" ~ elem+ ~ "ENDSEC;" }
 step = { SOI ~ "ISO-10303-21;" ~ header ~ data ~ "END-ISO-10303-21;" ~ EOI }
