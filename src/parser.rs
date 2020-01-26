@@ -8,7 +8,7 @@ use std::vec::Vec;
 struct StepParser;
 
 #[derive(PartialEq, Debug)]
-enum Value {
+pub enum Value {
     Number(f64),
     String(String),
     Id(u64),
@@ -17,15 +17,24 @@ enum Value {
 }
 
 #[derive(PartialEq, Debug)]
-struct Desc {
+pub struct Desc {
     name: String,
     args: Vec<Value>,
 }
 
 #[derive(PartialEq, Debug)]
-struct Elem {
+pub struct Elem {
     id: u64,
     desc: Desc,
+}
+
+pub type Header = Vec<Desc>;
+pub type Data = Vec<Elem>;
+
+#[derive(Debug)]
+pub struct Step {
+    header: Header,
+    data: Data,
 }
 
 fn value(v: Pair<Rule>) -> Value {
@@ -79,6 +88,45 @@ fn elem(e: Pair<Rule>) -> Elem {
     }
 }
 
+fn header(h: Pair<Rule>) -> Header {
+    match h.as_rule() {
+        Rule::header => {
+            let inner = h.into_inner();
+            inner.map(|v| desc(v)).collect()
+        },
+        _ => unreachable!(),
+    }
+}
+
+fn data(d: Pair<Rule>) -> Data {
+    match d.as_rule() {
+        Rule::data => {
+            let inner = d.into_inner();
+            inner.map(|v| elem(v)).collect()
+        },
+        _ => unreachable!(),
+    }
+}
+
+fn step(s: Pair<Rule>) -> Step {
+    match s.as_rule() {
+        Rule::step => {
+            let mut inner = s.into_inner();
+            let header = header(inner.next().unwrap());
+            let data = data(inner.next().unwrap());
+            Step {
+                header,
+                data,
+            }
+        },
+        _ => unreachable!()
+    }
+}
+
+pub fn parse<'a>(input: &'a str) -> Result<Step, Error<Rule>> {
+    StepParser::parse(Rule::step, input).map(|v| step(v.peek().unwrap()))
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -86,6 +134,7 @@ mod test {
     #[test]
     fn test() {
         assert_eq!(StepParser::parse(Rule::value, "-1.1E-15").map(|v| value(v.peek().unwrap())), Ok(Value::Number(-1.1e-15)));
+        assert_eq!(StepParser::parse(Rule::value, "10.").map(|v| value(v.peek().unwrap())), Ok(Value::Number(10.)));
         assert_eq!(StepParser::parse(Rule::value, "'hoge\\'foo'").map(|v| value(v.peek().unwrap())), Ok(Value::String("hoge\\'foo".to_string())));
         assert_eq!(StepParser::parse(Rule::value, "#123").map(|v| value(v.peek().unwrap())), Ok(Value::Id(123)));
         assert_eq!(StepParser::parse(Rule::value, ".BAR").map(|v| value(v.peek().unwrap())), Ok(Value::Control("BAR".to_string())));
