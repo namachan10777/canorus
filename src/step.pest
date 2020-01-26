@@ -18,3 +18,6 @@ value = { tuple | symbol | float | string | id | control }
 
 desc = { symbol ~ "(" ~ value ~ ("," ~ value)* ~ ")" ~ ";" }
 elem = { id ~ "=" ~ desc }
+header = { "HEADER;" ~ desc+ ~ "ENDSEC;" }
+data = { "DATA;" ~ elem+ ~ "ENDSEC;" }
+step = { SOI ~ "ISO-10303-21;" ~ header ~ data ~ "END-ISO-10303-21;" ~ EOI }
