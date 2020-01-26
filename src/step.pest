@@ -3,7 +3,7 @@ float = @{ ( "+" | "-" )? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* ~ ( "E" ~ "-"? ~ A
 string = @{ "'" ~ inner ~ "'" }
 inner = @{ char* }
 char = {
-	"\\'" | !"'" ~ ANY
+	!"'" ~ ANY
 }
 wildcard = { "*" }
 dollar = { "$" }
