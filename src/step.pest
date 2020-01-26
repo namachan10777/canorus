@@ -5,6 +5,7 @@ inner = @{ char* }
 char = {
 	"\\'" | !"'" ~ ANY
 }
+wildcard = { "*" }
 id = @{ "#" ~ ASCII_DIGIT+ }
 control = @{ "." ~ (ASCII_ALPHA | "_" | ".")+ }
 
@@ -14,7 +15,7 @@ COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 ign = _{ (WHITESPACE | COMMENT)* }
 
 tuple = ${ "(" ~ ign ~ value ~ ign ~ ("," ~ ign ~ value ~ ign)* ~ ")" }
-value = { tuple | symbol | float | string | id | control }
+value = { tuple | symbol | float | string | id | control | wildcard }
 
 desc = { symbol ~ "(" ~ value ~ ("," ~ value)* ~ ")" ~ ";" }
 elem = { id ~ "=" ~ desc }
