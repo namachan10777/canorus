@@ -1,5 +1,6 @@
 symbol = @{ ASCII_ALPHA ~ ( ASCII_ALPHA | ASCII_DIGIT | "_" | "-" )* }
 float = @{ ( "+" | "-" )? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* ~ ( "E" ~ "-"? ~ ASCII_DIGIT+ )? }
+integer = @{ ASCII_DIGIT+ }
 string = @{ "'" ~ inner ~ "'" }
 inner = @{ char* }
 char = {
@@ -15,8 +16,8 @@ COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 
 ign = _{ (WHITESPACE | COMMENT)* }
 
-tuple = ${ "(" ~ ign ~ value ~ ign ~ ("," ~ ign ~ value ~ ign)* ~ ")" }
-value = { tuple | symbol | float | string | id | control | wildcard | dollar }
+tuple = { "(" ~ value  ~ ("," ~ value )* ~ ")" }
+value = { desc | tuple | string | symbol | float | integer | id | control | wildcard | dollar }
 
 cfg = { "(" ~ desc* ~ ")" }
 desc = { symbol ~ "(" ~ ( value ~ ("," ~ value)* )? ~ ")" }
