@@ -3,9 +3,7 @@ float = @{ ( "+" | "-" )? ~ ASCII_DIGIT ~ "." ~ ASCII_DIGIT* ~ ( "E" ~ "-"? ~ AS
 string = @{ "'" ~ inner ~ "'" }
 inner = @{ char* }
 char = {
-	!("'" | "\\") ~ ANY
-	| "\\" ~ ("'" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
-	| "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+	"\\'" | !"'" ~ ANY
 }
 id = @{ "#" ~ ASCII_DIGIT+ }
 control = @{ "." ~ (ASCII_ALPHA | "_" | ".")+ }
