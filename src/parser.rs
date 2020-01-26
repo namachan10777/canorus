@@ -9,13 +9,15 @@ struct StepParser;
 
 #[derive(PartialEq, Debug)]
 pub enum Value {
-    Number(f64),
+    Float(f64),
+    Int(i64),
     String(String),
     Id(u64),
     Control(String),
     Tuple(Vec<Value>),
     Wildcard,
     Dollar,
+    Desc(Desc),
 }
 
 #[derive(PartialEq, Debug)]
@@ -25,9 +27,9 @@ pub struct Desc {
 }
 
 #[derive(PartialEq, Debug)]
-pub struct Elem {
-    id: u64,
-    desc: Desc,
+pub enum Elem {
+    Desc(u64, String, Vec<Value>),
+    Cfg(u64, Vec<Desc>),
 }
 
 pub type Header = Vec<Desc>;
@@ -44,7 +46,8 @@ fn value(v: Pair<Rule>) -> Value {
         Rule::value => {
             let v = v.into_inner();
             match v.peek().unwrap().as_rule() {
-                Rule::float => Value::Number(v.as_str().parse().unwrap()),
+                Rule::float => Value::Float(v.as_str().parse().unwrap()),
+                Rule::integer => Value::Int(v.as_str().parse().unwrap()),
                 Rule::string => {
                     let s = v.as_str();
                     Value::String(s[1..s.len()-1].to_string())
@@ -55,6 +58,9 @@ fn value(v: Pair<Rule>) -> Value {
                     let inner = v.peek().unwrap().into_inner().map(|v| value(v)).collect();
                     Value::Tuple(inner)
                 },
+                Rule::wildcard => Value::Wildcard,
+                Rule::dollar => Value::Wildcard,
+                Rule::desc => Value::Desc(desc(v.peek().unwrap())),
                 _ => unreachable!(),
             }
         },
@@ -81,9 +87,17 @@ fn elem(e: Pair<Rule>) -> Elem {
         Rule::elem => {
             let mut inner = e.into_inner();
             let id = inner.next().unwrap().as_str()[1..].parse().unwrap();
-            Elem {
-                id,
-                desc: desc(inner.next().unwrap()),
+            let body = inner.next().unwrap();
+            match body.as_rule() {
+                Rule::desc => {
+                    let desc = desc(body);
+                    Elem::Desc(id, desc.name, desc.args)
+                },
+                Rule::cfg => {
+                    let contains = body.into_inner().map(|v| desc(v)).collect();
+                    Elem::Cfg(id, contains)
+                },
+                _ => unreachable!(),
             }
         },
         _ => unreachable!(),
@@ -159,16 +173,13 @@ mod test {
         assert_eq!(StepParser::parse(Rule::elem,
             "#20=FACE_BOUND('',#64,.T.);"
             ).map(|v| elem(v.peek().unwrap())),
-            Ok(Elem{
-                id: 20,
-                desc: Desc {
-                    name: "FACE_BOUND".to_string(),
-                    args: vec![
-                        Value::String("".to_string()),
-                        Value::Id(64),
-                        Value::Control("T.".to_string()),
-                    ],
-                },
-            }));
+            Ok(Elem::Desc(
+                20,
+                "FACE_BOUND".to_string(),
+                vec![
+                    Value::String("".to_string()),
+                    Value::Id(64),
+                    Value::Control("T.".to_string()),
+                ])));
     }
 }
