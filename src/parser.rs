@@ -15,6 +15,7 @@ pub enum Value {
     Control(String),
     Tuple(Vec<Value>),
     Wildcard,
+    Dollar,
 }
 
 #[derive(PartialEq, Debug)]

@@ -6,6 +6,7 @@ char = {
 	"\\'" | !"'" ~ ANY
 }
 wildcard = { "*" }
+dollar = { "$" }
 id = @{ "#" ~ ASCII_DIGIT+ }
 control = @{ "." ~ (ASCII_ALPHA | "_" | ".")+ }
 
@@ -15,7 +16,7 @@ COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 ign = _{ (WHITESPACE | COMMENT)* }
 
 tuple = ${ "(" ~ ign ~ value ~ ign ~ ("," ~ ign ~ value ~ ign)* ~ ")" }
-value = { tuple | symbol | float | string | id | control | wildcard }
+value = { tuple | symbol | float | string | id | control | wildcard | dollar }
 
 cfg = { "(" ~ desc* ~ ")" }
 desc = { symbol ~ "(" ~ ( value ~ ("," ~ value)* )? ~ ")" }
