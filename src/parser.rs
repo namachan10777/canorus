@@ -17,7 +17,7 @@ pub enum Value {
     Tuple(Vec<Value>),
     Wildcard,
     Dollar,
-    Desc(Desc),
+    Desc(String, Vec<Value>),
 }
 
 impl Value {
@@ -36,20 +36,8 @@ impl Value {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
-pub struct Desc {
-    pub name: String,
-    pub args: Vec<Value>,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum Elem {
-    Desc(u64, String, Vec<Value>),
-    Cfg(u64, Vec<Desc>),
-}
-
-pub type Header = Vec<Desc>;
-pub type Data = Vec<Elem>;
+pub type Header = Vec<Value>;
+pub type Data = Vec<(u64, Value)>;
 
 #[derive(Debug)]
 pub struct Step {
@@ -76,7 +64,14 @@ fn value(v: Pair<Rule>) -> Value {
                 },
                 Rule::wildcard => Value::Wildcard,
                 Rule::dollar => Value::Wildcard,
-                Rule::desc => Value::Desc(desc(v.peek().unwrap())),
+                Rule::desc => {
+                    let mut inner = v.peek().unwrap().into_inner();
+                    let name = inner.next().unwrap().as_str();
+                    Value::Desc(
+                        name.to_string(),
+                        inner.map(|v| value(v)).collect(),
+                    )
+                },
                 _ => unreachable!(),
             }
         },
@@ -84,37 +79,13 @@ fn value(v: Pair<Rule>) -> Value {
     }
 }
 
-fn desc(d: Pair<Rule>) -> Desc {
-    match d.as_rule() {
-        Rule::desc => {
-            let mut inner = d.into_inner();
-            let name = inner.next().unwrap().as_str();
-            Desc {
-                name: name.to_string(),
-                args: inner.map(|v| value(v)).collect()
-            }
-        },
-        _ => unreachable!(),
-    }
-}
-
-fn elem(e: Pair<Rule>) -> Elem {
+fn elem(e: Pair<Rule>) -> (u64, Value) {
     match e.as_rule() {
         Rule::elem => {
             let mut inner = e.into_inner();
             let id = inner.next().unwrap().as_str()[1..].parse().unwrap();
-            let body = inner.next().unwrap();
-            match body.as_rule() {
-                Rule::desc => {
-                    let desc = desc(body);
-                    Elem::Desc(id, desc.name, desc.args)
-                },
-                Rule::cfg => {
-                    let contains = body.into_inner().map(|v| desc(v)).collect();
-                    Elem::Cfg(id, contains)
-                },
-                _ => unreachable!(),
-            }
+            let body = value(inner.next().unwrap());
+            (id, body)
         },
         _ => unreachable!(),
     }
@@ -124,7 +95,7 @@ fn header(h: Pair<Rule>) -> Header {
     match h.as_rule() {
         Rule::header => {
             let inner = h.into_inner();
-            inner.map(|v| desc(v)).collect()
+            inner.map(|v| value(v)).collect()
         },
         _ => unreachable!(),
     }
@@ -173,28 +144,16 @@ mod test {
             Ok(Value::Tuple(vec![Value::Float(1.0), Value::String(String::new()), Value::Id(12)])));
         assert_eq!(StepParser::parse(Rule::value, "('')").map(|v| value(v.peek().unwrap())), 
             Ok(Value::Tuple(vec![Value::String(String::new())])));
-        assert_eq!(StepParser::parse(Rule::desc,
-                "FILE_DESCRIPTION(\
-                /* description */ (''),\
-                /* implementation_level */ '2;1');"
-                ).map(|v| desc(v.peek().unwrap())), 
-            Ok(Desc {
-                name: "FILE_DESCRIPTION".to_string(),
-                args: vec![
-                    Value::Tuple(vec![Value::String(String::new())]),
-                    Value::String("2;1".to_string()),
-                ]
-            }));
         assert_eq!(StepParser::parse(Rule::elem,
             "#20=FACE_BOUND('',#64,.T.);"
             ).map(|v| elem(v.peek().unwrap())),
-            Ok(Elem::Desc(
-                20,
+            Ok((20,
+                Value::Desc(
                 "FACE_BOUND".to_string(),
                 vec![
                     Value::String("".to_string()),
                     Value::Id(64),
                     Value::Control("T.".to_string()),
-                ])));
+                ]))));
     }
 }

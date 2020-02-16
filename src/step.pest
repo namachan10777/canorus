@@ -18,11 +18,10 @@ COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
 ign = _{ (WHITESPACE | COMMENT)* }
 
 tuple = { "(" ~ value  ~ ("," ~ value )* ~ ")" }
-value = { desc | tuple | string | symbol | float | integer | id | control | wildcard | dollar }
-
-cfg = { "(" ~ desc* ~ ")" }
 desc = { symbol ~ "(" ~ ( value ~ ("," ~ value)* )? ~ ")" }
-elem = { id ~ "=" ~ ( desc | cfg ) ~ ";"}
-header = { "HEADER;" ~ ( desc ~ ";" )+ ~ "ENDSEC;" }
+value = { tuple | string | float | integer | id | control | wildcard | dollar | desc | symbol }
+
+elem = { id ~ "=" ~ value ~ ";"}
+header = { "HEADER;" ~ ( value ~ ";" )+ ~ "ENDSEC;" }
 data = { "DATA;" ~ elem+ ~ "ENDSEC;" }
 step = { SOI ~ "ISO-10303-21;" ~ header ~ data ~ "END-ISO-10303-21;" ~ EOI }
