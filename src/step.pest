@@ -1,11 +1,12 @@
+HEX = { "A" | "B" | "C" | "D" | "E" | "F" | ASCII_DIGIT }
+
 symbol = @{ ASCII_ALPHA ~ ( ASCII_ALPHA | ASCII_DIGIT | "_" | "-" )* }
 float = @{ ( "+" | "-" )? ~ ASCII_DIGIT+ ~ "." ~ ASCII_DIGIT* ~ ( "E" ~ "-"? ~ ASCII_DIGIT+ )? }
 integer = @{ ASCII_DIGIT+ }
 string = @{ "'" ~ inner ~ "'" }
 inner = @{ char* }
-char = {
-	!"'" ~ ANY
-}
+char = @{ uniescape | "\\'" | (!"'" ~ ANY) }
+uniescape = @{ "\\X2\\" ~ HEX* ~ "\\X0\\" }
 wildcard = { "*" }
 dollar = { "$" }
 id = @{ "#" ~ ASCII_DIGIT+ }
