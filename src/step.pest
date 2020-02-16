@@ -7,10 +7,11 @@ string = @{ "'" ~ inner ~ "'" }
 inner = @{ char* }
 char = @{ uniescape | "\\'" | (!"'" ~ ANY) }
 uniescape = @{ "\\X2\\" ~ HEX* ~ "\\X0\\" }
-wildcard = { "*" }
-dollar = { "$" }
+xplicit = { "*" }
+undefined = { "$" }
 id = @{ "#" ~ ASCII_DIGIT+ }
-control = @{ "." ~ (ASCII_ALPHA | "_" | ".")+ }
+enum_ = @{ "." ~ symbol ~ "."}
+bool_ = @{ ".T." | ".F." }
 
 WHITESPACE = _{ " " | "\r" | "\t" | "\n" }
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
@@ -19,7 +20,7 @@ ign = _{ (WHITESPACE | COMMENT)* }
 
 tuple = { "(" ~ value  ~ ("," ~ value )* ~ ")" }
 desc = { symbol ~ "(" ~ ( value ~ ("," ~ value)* )? ~ ")" }
-value = { tuple | string | float | integer | id | control | wildcard | dollar | desc | symbol }
+value = { tuple | string | float | integer | id | bool_ | enum_ | xplicit | undefined | desc | symbol }
 
 elem = { id ~ "=" ~ value ~ ";"}
 header = { "HEADER;" ~ ( value ~ ";" )+ ~ "ENDSEC;" }

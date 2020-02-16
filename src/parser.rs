@@ -13,10 +13,11 @@ pub enum Value {
     Int(i64),
     String(String),
     Id(u64),
-    Control(String),
+    Bool(bool),
+    Enum(String),
     Tuple(Vec<Value>),
-    Wildcard,
-    Dollar,
+    Xplicit,
+    Undefined,
     Desc(String, Vec<Value>),
 }
 
@@ -57,13 +58,19 @@ fn value(v: Pair<Rule>) -> Value {
                     Value::String(s[1..s.len()-1].to_string())
                 },
                 Rule::id => Value::Id(v.as_str()[1..].parse().unwrap()),
-                Rule::control => Value::Control(v.as_str()[1..].to_string()),
+                Rule::enum_ => {
+                    let s = v.as_str();
+                    Value::Enum(s[1..s.len()-1].to_string())
+                },
+                Rule::bool_ => {
+                    Value::Bool(v.as_str() == ".T.")
+                },
                 Rule::tuple => {
                     let inner = v.peek().unwrap().into_inner().map(|v| value(v)).collect();
                     Value::Tuple(inner)
                 },
-                Rule::wildcard => Value::Wildcard,
-                Rule::dollar => Value::Wildcard,
+                Rule::xplicit => Value::Xplicit,
+                Rule::undefined => Value::Xplicit,
                 Rule::desc => {
                     let mut inner = v.peek().unwrap().into_inner();
                     let name = inner.next().unwrap().as_str();
@@ -139,7 +146,7 @@ mod test {
         assert_eq!(StepParser::parse(Rule::value, "-1.1E-15").map(|v| value(v.peek().unwrap())), Ok(Value::Float(-1.1e-15)));
         assert_eq!(StepParser::parse(Rule::value, "10.").map(|v| value(v.peek().unwrap())), Ok(Value::Float(10.)));
         assert_eq!(StepParser::parse(Rule::value, "#123").map(|v| value(v.peek().unwrap())), Ok(Value::Id(123)));
-        assert_eq!(StepParser::parse(Rule::value, ".BAR").map(|v| value(v.peek().unwrap())), Ok(Value::Control("BAR".to_string())));
+        assert_eq!(StepParser::parse(Rule::value, ".BAR.").map(|v| value(v.peek().unwrap())), Ok(Value::Enum("BAR".to_string())));
         assert_eq!(StepParser::parse(Rule::value, "(1., '', #12)").map(|v| value(v.peek().unwrap())),
             Ok(Value::Tuple(vec![Value::Float(1.0), Value::String(String::new()), Value::Id(12)])));
         assert_eq!(StepParser::parse(Rule::value, "('')").map(|v| value(v.peek().unwrap())), 
@@ -153,7 +160,7 @@ mod test {
                 vec![
                     Value::String("".to_string()),
                     Value::Id(64),
-                    Value::Control("T.".to_string()),
+                    Value::Bool(true),
                 ]))));
     }
 }
