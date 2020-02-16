@@ -1,5 +1,5 @@
 use pest::Parser;
-use pest::iterators::{Pairs, Pair};
+use pest::iterators::{Pair};
 use pest::error::Error;
 use std::vec::Vec;
 

@@ -1,12 +1,10 @@
-use std::fs;
 pub mod parser;
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
-use pest::Parser;
 
 #[derive(Default, Debug)]
-pub struct header {
+pub struct Header {
     description: Vec<String>,
     implementation_level: String,
     name: String,
@@ -19,30 +17,30 @@ pub struct header {
     file_schema: Vec<String>,
 }
 
-type v3 = (f64, f64, f64);
+type V3 = (f64, f64, f64);
 
 #[derive(Debug)]
-pub struct axis {
-    p: v3,
-    axis1: v3,
-    axis2: v3,
+pub struct Axis {
+    p: V3,
+    axis1: V3,
+    axis2: V3,
 }
 
 #[derive(Debug)]
-pub enum face_element {
-    Cylinder(f64, axis),
-    Plane(axis),
+pub enum FaceElement {
+    Cylinder(f64, Axis),
+    Plane(Axis),
 }
 
 #[derive(Debug)]
-pub struct advanced_face {
+pub struct AdvancedFace {
     flag: bool,
-    elem: face_element,
+    elem: FaceElement,
 }
 
-pub fn parse(s : &str) -> (header, Vec<advanced_face>) {
+pub fn parse(s : &str) -> (Header, Vec<AdvancedFace>) {
     let parsed = parser::parse(s).unwrap();
-    let mut header = header::default();
+    let mut header = Header::default();
     for desc in parsed.header {
         match desc.name.as_str() {
             "FILE_DESCRIPTION" => {

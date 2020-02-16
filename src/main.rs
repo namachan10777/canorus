@@ -15,6 +15,6 @@ fn main() {
         .get_matches();
     let mut f = fs::File::open(matches.value_of("INPUT").unwrap()).unwrap();
     let mut buf = String::new();
-    f.read_to_string(&mut buf);
+    f.read_to_string(&mut buf).unwrap();
     println!("{:?}", canorus::parse(&buf));
 }
