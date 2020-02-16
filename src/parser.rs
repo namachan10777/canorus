@@ -7,7 +7,7 @@ use std::vec::Vec;
 #[grammar = "step.pest"]
 struct StepParser;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Value {
     Float(f64),
     Int(i64),
@@ -20,10 +20,26 @@ pub enum Value {
     Desc(Desc),
 }
 
-#[derive(PartialEq, Debug)]
+impl Value {
+    pub fn str(self) -> Option<String> {
+        match self {
+            Value::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn tuple(self) -> Option<Vec<Value>> {
+        match self {
+            Value::Tuple(s) => Some(s),
+            _ => None,
+        }
+    }
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub struct Desc {
-    name: String,
-    args: Vec<Value>,
+    pub name: String,
+    pub args: Vec<Value>,
 }
 
 #[derive(PartialEq, Debug)]
@@ -37,8 +53,8 @@ pub type Data = Vec<Elem>;
 
 #[derive(Debug)]
 pub struct Step {
-    header: Header,
-    data: Data,
+    pub header: Header,
+    pub data: Data,
 }
 
 fn value(v: Pair<Rule>) -> Value {
