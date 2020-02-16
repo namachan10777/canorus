@@ -38,10 +38,9 @@ pub struct AdvancedFace {
     elem: FaceElement,
 }
 
-pub fn parse(s : &str) -> (Header, Vec<AdvancedFace>) {
-    let parsed = parser::parse(s).unwrap();
+fn parse_header(parsed_header: parser::Header) -> Header {
     let mut header = Header::default();
-    for desc in parsed.header {
+    for desc in parsed_header {
         match desc.name.as_str() {
             "FILE_DESCRIPTION" => {
                 println!("{:?}", desc.args);
@@ -64,5 +63,10 @@ pub fn parse(s : &str) -> (Header, Vec<AdvancedFace>) {
             }
         }
     }
-    (header, Vec::new())
+    header
+}
+
+pub fn parse(s : &str) -> (Header, Vec<AdvancedFace>) {
+    let parsed = parser::parse(s).unwrap();
+    (parse_header(parsed.header), Vec::new())
 }
