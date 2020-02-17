@@ -1,166 +1,131 @@
-use pest::Parser;
-use pest::iterators::{Pair};
-use pest::error::Error;
-use std::vec::Vec;
+use super::preprocess;
+use std::collections::HashMap;
 
-#[derive(Parser)]
-#[grammar = "step.pest"]
-struct StepParser;
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum Value {
-    Float(f64),
-    Int(i64),
-    String(String),
-    Id(u64),
-    Bool(bool),
-    Enum(String),
-    Tuple(Vec<Value>),
-    Xplicit,
-    Undefined,
-    Desc(String, Vec<Value>),
+#[derive(Default, Debug)]
+pub struct Header {
+    description: Vec<String>,
+    implementation_level: String,
+    name: String,
+    time_stamp: String,
+    author: Vec<String>,
+    organization: Vec<String>,
+    preprocessor_version: String,
+    originating_system: String,
+    authorisation: Vec<String>,
+    file_schema: Vec<String>,
 }
 
-impl Value {
-    pub fn str(self) -> Option<String> {
-        match self {
-            Value::String(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    pub fn tuple(self) -> Option<Vec<Value>> {
-        match self {
-            Value::Tuple(s) => Some(s),
-            _ => None,
-        }
-    }
-}
-
-pub type Header = Vec<Value>;
-pub type Data = Vec<(u64, Value)>;
+type V3 = (f64, f64, f64);
 
 #[derive(Debug)]
-pub struct Step {
-    pub header: Header,
-    pub data: Data,
+pub struct Axis {
+    p: V3,
+    axis1: V3,
+    axis2: V3,
 }
 
-fn value(v: Pair<Rule>) -> Value {
-    match v.as_rule() {
-        Rule::value => {
-            let v = v.into_inner();
-            match v.peek().unwrap().as_rule() {
-                Rule::float => Value::Float(v.as_str().parse().unwrap()),
-                Rule::integer => Value::Int(v.as_str().parse().unwrap()),
-                Rule::string => {
-                    let s = v.as_str();
-                    Value::String(s[1..s.len()-1].to_string())
+#[derive(Debug)]
+pub enum FaceElement {
+    Cylinder(f64, Axis),
+    Plane(Axis),
+}
+
+#[derive(Debug)]
+pub struct AdvancedFace {
+    flag: bool,
+    elem: FaceElement,
+}
+
+fn parse_header(parsed_header: preprocess::Header) -> Header {
+    let mut header = Header::default();
+    for desc in parsed_header {
+        match desc {
+            preprocess::Value::Desc(name, args) =>
+                match name.as_str() {
+                    "FILE_DESCRIPTION" => {
+                        println!("{:?}", args);
+                        header.description = args[0].clone().tuple().unwrap().iter().map(|v| v.clone().str().unwrap()).collect();
+                        header.implementation_level = args[1].clone().str().unwrap();
+                    },
+                    "FILE_NAME" => {
+                        header.name = args[0].clone().str().unwrap();
+                        header.time_stamp = args[1].clone().str().unwrap();
+                        header.author = args[2].clone().tuple().unwrap().iter().map(|v| v.clone().str().unwrap()).collect();
+                        header.organization = args[3].clone().tuple().unwrap().iter().map(|v| v.clone().str().unwrap()).collect();
+                        header.preprocessor_version = args[4].clone().str().unwrap();
+                        header.originating_system = args[5].clone().str().unwrap();
+                        header.originating_system = args[6].clone().str().unwrap();
+                    },
+                    "FILE_SCHEMA" => {
+                        header.file_schema = args[0].clone().tuple().unwrap().iter().map(|v| v.clone().str().unwrap()).collect();
+                    },
+                    _ => {
+                    }
                 },
-                Rule::id => Value::Id(v.as_str()[1..].parse().unwrap()),
-                Rule::enum_ => {
-                    let s = v.as_str();
-                    Value::Enum(s[1..s.len()-1].to_string())
-                },
-                Rule::bool_ => {
-                    Value::Bool(v.as_str() == ".T.")
-                },
-                Rule::tuple => {
-                    let inner = v.peek().unwrap().into_inner().map(|v| value(v)).collect();
-                    Value::Tuple(inner)
-                },
-                Rule::xplicit => Value::Xplicit,
-                Rule::undefined => Value::Xplicit,
-                Rule::desc => {
-                    let mut inner = v.peek().unwrap().into_inner();
-                    let name = inner.next().unwrap().as_str();
-                    Value::Desc(
-                        name.to_string(),
-                        inner.map(|v| value(v)).collect(),
-                    )
-                },
-                _ => unreachable!(),
-            }
-        },
-        _ => unreachable!(),
+            _ => {}
+        }
     }
+    header
 }
 
-fn elem(e: Pair<Rule>) -> (u64, Value) {
-    match e.as_rule() {
-        Rule::elem => {
-            let mut inner = e.into_inner();
-            let id = inner.next().unwrap().as_str()[1..].parse().unwrap();
-            let body = value(inner.next().unwrap());
-            (id, body)
-        },
-        _ => unreachable!(),
+fn make_db(data: preprocess::Data) -> HashMap<u64, preprocess::Value> {
+    let mut map = HashMap::new();
+    for (id, desc) in data {
+        map.insert(id, desc);
     }
+    map
 }
 
-fn header(h: Pair<Rule>) -> Header {
-    match h.as_rule() {
-        Rule::header => {
-            let inner = h.into_inner();
-            inner.map(|v| value(v)).collect()
-        },
-        _ => unreachable!(),
+fn find_mechanical_design_geometric_presentation_representation_id(map: &HashMap<u64,preprocess::Value>) -> Option<u64> {
+    for key in map.keys() {
+        match &map[key] {
+            preprocess::Value::Desc(desc_name, _) => {
+                match desc_name.as_str() {
+                    "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" => {
+                        return Some(*key)
+                    },
+                    _ => {
+                    },
+                }
+            },
+            _ => {},
+        }
     }
+    None
 }
 
-fn data(d: Pair<Rule>) -> Data {
-    match d.as_rule() {
-        Rule::data => {
-            let inner = d.into_inner();
-            inner.map(|v| elem(v)).collect()
-        },
-        _ => unreachable!(),
-    }
+fn get_styled_item_ids(map: &HashMap<u64,preprocess::Value>, id: u64) -> Option<Vec<u64>> {
+    None
 }
 
-fn step(s: Pair<Rule>) -> Step {
-    match s.as_rule() {
-        Rule::step => {
-            let mut inner = s.into_inner();
-            let header = header(inner.next().unwrap());
-            let data = data(inner.next().unwrap());
-            Step {
-                header,
-                data,
-            }
-        },
-        _ => unreachable!()
-    }
+fn get_manifold_solid_brep_id(map: &HashMap<u64,preprocess::Value>, id: u64) -> Option<u64> {
+    None
 }
 
-pub fn parse<'a>(input: &'a str) -> Result<Step, Error<Rule>> {
-    StepParser::parse(Rule::step, input).map(|v| step(v.peek().unwrap()))
+fn get_closed_shell_id(map: &HashMap<u64,preprocess::Value>, id: u64) -> Option<u64> {
+    None
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
+fn get_advanced_face_ids(map: &HashMap<u64,preprocess::Value>, id: u64) -> Option<Vec<u64>> {
+    None
+}
 
-    #[test]
-    fn test() {
-        assert_eq!(StepParser::parse(Rule::value, "-1.1E-15").map(|v| value(v.peek().unwrap())), Ok(Value::Float(-1.1e-15)));
-        assert_eq!(StepParser::parse(Rule::value, "10.").map(|v| value(v.peek().unwrap())), Ok(Value::Float(10.)));
-        assert_eq!(StepParser::parse(Rule::value, "#123").map(|v| value(v.peek().unwrap())), Ok(Value::Id(123)));
-        assert_eq!(StepParser::parse(Rule::value, ".BAR.").map(|v| value(v.peek().unwrap())), Ok(Value::Enum("BAR".to_string())));
-        assert_eq!(StepParser::parse(Rule::value, "(1., '', #12)").map(|v| value(v.peek().unwrap())),
-            Ok(Value::Tuple(vec![Value::Float(1.0), Value::String(String::new()), Value::Id(12)])));
-        assert_eq!(StepParser::parse(Rule::value, "('')").map(|v| value(v.peek().unwrap())), 
-            Ok(Value::Tuple(vec![Value::String(String::new())])));
-        assert_eq!(StepParser::parse(Rule::elem,
-            "#20=FACE_BOUND('',#64,.T.);"
-            ).map(|v| elem(v.peek().unwrap())),
-            Ok((20,
-                Value::Desc(
-                "FACE_BOUND".to_string(),
-                vec![
-                    Value::String("".to_string()),
-                    Value::Id(64),
-                    Value::Bool(true),
-                ]))));
-    }
+fn parse_advanced_face(map: &HashMap<u64, preprocess::Value>, id: u64) -> Option<AdvancedFace> {
+    None
+}
+
+fn parse_data(parsed_data: preprocess::Data) -> Vec<AdvancedFace> {
+    let map = make_db(parsed_data);
+    // ad-hoc
+    let root_id = find_mechanical_design_geometric_presentation_representation_id(&map).unwrap();
+    let styled_item_ids = get_styled_item_ids(&map, root_id).unwrap();
+    let manifold_solid_brep_id = get_manifold_solid_brep_id(&map, styled_item_ids[0]).unwrap();
+    let closed_shell_id = get_closed_shell_id(&map, manifold_solid_brep_id).unwrap();
+    let advanced_face_ids = get_advanced_face_ids(&map, closed_shell_id).unwrap();
+    advanced_face_ids.iter().map(|face_id| parse_advanced_face(&map, *face_id).unwrap()).collect()
+}
+
+pub fn parse(s : &str) -> (Header, Vec<AdvancedFace>) {
+    let parsed = preprocess::parse(s).unwrap();
+    (parse_header(parsed.header), parse_data(parsed.data))
 }
