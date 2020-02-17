@@ -1,5 +1,5 @@
 use pest::Parser;
-use pest::iterators::{Pair};
+use pest::iterators::{Pair, Pairs};
 use std::vec::Vec;
 
 #[derive(Parser)]
@@ -21,11 +21,9 @@ pub enum Value {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct PreprocessErrorInfo {
-    fname: String,
-    col: u64,
-    row: u64,
-    line_str: String,
+pub enum PreprocessErrorInfo {
+    LineCol((usize, usize)),
+    Span((usize, usize), (usize, usize)),
 }
 
 #[derive(Debug, PartialEq)]
@@ -43,6 +41,15 @@ impl From<std::num::ParseFloatError> for PreprocessError {
 impl From<std::num::ParseIntError> for PreprocessError {
     fn from(_: std::num::ParseIntError) -> Self {
         PreprocessError::InternalError
+    }
+}
+
+impl From<pest::error::Error<Rule>> for PreprocessError {
+    fn from (e: pest::error::Error<Rule>) -> Self {
+        match e.line_col {
+            pest::error::LineColLocation::Pos(p) => PreprocessError::Fail(PreprocessErrorInfo::LineCol(p)),
+            pest::error::LineColLocation::Span(p1, p2) => PreprocessError::Fail(PreprocessErrorInfo::Span(p1, p2)),
+        }
     }
 }
 
@@ -197,12 +204,9 @@ fn step(s: Pair<Rule>) -> Result<Step, PreprocessError> {
 }
 
 pub fn parse<'a>(input: &'a str) -> Result<Step, PreprocessError> {
-    match StepParser::parse(Rule::step, input) {
-        Ok(parsed) => 
-            step(parsed.peek().ok_or(PreprocessError::InternalError)?),
-        Err(err) =>
-            Err(PreprocessError::InternalError)
-    }
+    let parsed: Result<Pairs<Rule>, PreprocessError> = StepParser::parse(Rule::step, input)
+        .map_err(From::from);
+    step(parsed?.peek().ok_or(PreprocessError::InternalError)?)
 }
 
 #[cfg(test)]
