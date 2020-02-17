@@ -1,6 +1,5 @@
 use pest::Parser;
 use pest::iterators::{Pair};
-use pest::error::Error;
 use std::vec::Vec;
 
 #[derive(Parser)]
@@ -19,6 +18,32 @@ pub enum Value {
     Xplicit,
     Undefined,
     Desc(String, Vec<Value>),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct PreprocessErrorInfo {
+    fname: String,
+    col: u64,
+    row: u64,
+    line_str: String,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum PreprocessError {
+    Fail(PreprocessErrorInfo),
+    InternalError,
+}
+
+impl From<std::num::ParseFloatError> for PreprocessError {
+    fn from(_: std::num::ParseFloatError) -> Self {
+        PreprocessError::InternalError
+    }
+}
+
+impl From<std::num::ParseIntError> for PreprocessError {
+    fn from(_: std::num::ParseIntError) -> Self {
+        PreprocessError::InternalError
+    }
 }
 
 impl Value {
@@ -46,95 +71,138 @@ pub struct Step {
     pub data: Data,
 }
 
-fn value(v: Pair<Rule>) -> Value {
+fn value(v: Pair<Rule>) -> Result<Value, PreprocessError> {
     match v.as_rule() {
         Rule::value => {
             let v = v.into_inner();
-            match v.peek().unwrap().as_rule() {
-                Rule::float => Value::Float(v.as_str().parse().unwrap()),
-                Rule::integer => Value::Int(v.as_str().parse().unwrap()),
+            match v.peek().ok_or(PreprocessError::InternalError)?.as_rule() {
+                Rule::float => {
+                    let f: Result<f64, PreprocessError> = v.as_str().parse().map_err(From::from);
+                    Ok(Value::Float(f?))
+                },
+                Rule::integer => {
+                    let i: Result<i64, PreprocessError> = v.as_str().parse().map_err(From::from);
+                    Ok(Value::Int(i?))
+                },
                 Rule::string => {
                     let s = v.as_str();
-                    Value::String(s[1..s.len()-1].to_string())
+                    Ok(Value::String(s.get(1..s.len()-1).ok_or(PreprocessError::InternalError)?.to_string()))
                 },
-                Rule::id => Value::Id(v.as_str()[1..].parse().unwrap()),
+                Rule::id => {
+                    let id: Result<u64, PreprocessError> = v
+                        .as_str()
+                        .get(1..)
+                        .ok_or(PreprocessError::InternalError)?
+                        .parse()
+                        .map_err(From::from);
+                    Ok(Value::Id(id?))
+                },
                 Rule::enum_ => {
                     let s = v.as_str();
-                    Value::Enum(s[1..s.len()-1].to_string())
+                    Ok(Value::Enum(s.get(1..s.len()-1).ok_or(PreprocessError::InternalError)?.to_string()))
                 },
                 Rule::bool_ => {
-                    Value::Bool(v.as_str() == ".T.")
+                    Ok(Value::Bool(v.as_str() == ".T."))
                 },
                 Rule::tuple => {
-                    let inner = v.peek().unwrap().into_inner().map(|v| value(v)).collect();
-                    Value::Tuple(inner)
+                    let inner : Result<Vec<Value>, PreprocessError> = v
+                        .peek()
+                        .ok_or(PreprocessError::InternalError)?
+                        .into_inner()
+                        .map(|v| value(v)).collect();
+                    Ok(Value::Tuple(inner?))
                 },
-                Rule::xplicit => Value::Xplicit,
-                Rule::undefined => Value::Xplicit,
+                Rule::xplicit => Ok(Value::Xplicit),
+                Rule::undefined => Ok(Value::Xplicit),
                 Rule::desc => {
-                    let mut inner = v.peek().unwrap().into_inner();
-                    let name = inner.next().unwrap().as_str();
-                    Value::Desc(
+                    let mut inner = v
+                        .peek()
+                        .ok_or(PreprocessError::InternalError)?
+                        .into_inner();
+                    let name = inner
+                        .next()
+                        .ok_or(PreprocessError::InternalError)?
+                        .as_str();
+                    let args: Result<Vec<Value>,PreprocessError> = inner
+                        .map(|v| value(v))
+                        .collect();
+                    Ok(Value::Desc(
                         name.to_string(),
-                        inner.map(|v| value(v)).collect(),
-                    )
+                        args?,
+                    ))
                 },
-                _ => unreachable!(),
+                _ => Err(PreprocessError::InternalError),
             }
         },
-        _ => unreachable!(),
+        _ => Err(PreprocessError::InternalError),
     }
 }
 
-fn elem(e: Pair<Rule>) -> (u64, Value) {
+fn elem(e: Pair<Rule>) -> Result<(u64, Value), PreprocessError> {
     match e.as_rule() {
         Rule::elem => {
             let mut inner = e.into_inner();
-            let id = inner.next().unwrap().as_str()[1..].parse().unwrap();
-            let body = value(inner.next().unwrap());
-            (id, body)
+            let id: Result<u64, PreprocessError> = inner
+                .next()
+                .ok_or(PreprocessError::InternalError)?
+                .as_str()
+                .get(1..)
+                .ok_or(PreprocessError::InternalError)?
+                .parse()
+                .map_err(From::from);
+            let body = value(
+                inner
+                .next()
+                .ok_or(PreprocessError::InternalError)?
+                )?;
+            Ok((id?, body))
         },
-        _ => unreachable!(),
+        _ => Err(PreprocessError::InternalError),
     }
 }
 
-fn header(h: Pair<Rule>) -> Header {
+fn header(h: Pair<Rule>) -> Result<Header, PreprocessError> {
     match h.as_rule() {
         Rule::header => {
             let inner = h.into_inner();
             inner.map(|v| value(v)).collect()
         },
-        _ => unreachable!(),
+        _ => Err(PreprocessError::InternalError),
     }
 }
 
-fn data(d: Pair<Rule>) -> Data {
+fn data(d: Pair<Rule>) -> Result<Data, PreprocessError> {
     match d.as_rule() {
         Rule::data => {
             let inner = d.into_inner();
             inner.map(|v| elem(v)).collect()
         },
-        _ => unreachable!(),
+        _ => Err(PreprocessError::InternalError),
     }
 }
 
-fn step(s: Pair<Rule>) -> Step {
+fn step(s: Pair<Rule>) -> Result<Step, PreprocessError> {
     match s.as_rule() {
         Rule::step => {
             let mut inner = s.into_inner();
-            let header = header(inner.next().unwrap());
-            let data = data(inner.next().unwrap());
-            Step {
+            let header = header(inner.next().ok_or(PreprocessError::InternalError)?)?;
+            let data = data(inner.next().ok_or(PreprocessError::InternalError)?)?;
+            Ok(Step {
                 header,
                 data,
-            }
+            })
         },
-        _ => unreachable!()
+        _ => Err(PreprocessError::InternalError)
     }
 }
 
-pub fn parse<'a>(input: &'a str) -> Result<Step, Error<Rule>> {
-    StepParser::parse(Rule::step, input).map(|v| step(v.peek().unwrap()))
+pub fn parse<'a>(input: &'a str) -> Result<Step, PreprocessError> {
+    match StepParser::parse(Rule::step, input) {
+        Ok(parsed) => 
+            step(parsed.peek().ok_or(PreprocessError::InternalError)?),
+        Err(err) =>
+            Err(PreprocessError::InternalError)
+    }
 }
 
 #[cfg(test)]
@@ -143,17 +211,17 @@ mod test {
 
     #[test]
     fn test() {
-        assert_eq!(StepParser::parse(Rule::value, "-1.1E-15").map(|v| value(v.peek().unwrap())), Ok(Value::Float(-1.1e-15)));
-        assert_eq!(StepParser::parse(Rule::value, "10.").map(|v| value(v.peek().unwrap())), Ok(Value::Float(10.)));
-        assert_eq!(StepParser::parse(Rule::value, "#123").map(|v| value(v.peek().unwrap())), Ok(Value::Id(123)));
-        assert_eq!(StepParser::parse(Rule::value, ".BAR.").map(|v| value(v.peek().unwrap())), Ok(Value::Enum("BAR".to_string())));
-        assert_eq!(StepParser::parse(Rule::value, "(1., '', #12)").map(|v| value(v.peek().unwrap())),
+        assert_eq!(StepParser::parse(Rule::value, "-1.1E-15").map(|v| value(v.peek().unwrap()).unwrap()), Ok(Value::Float(-1.1e-15)));
+        assert_eq!(StepParser::parse(Rule::value, "10.").map(|v| value(v.peek().unwrap()).unwrap()), Ok(Value::Float(10.)));
+        assert_eq!(StepParser::parse(Rule::value, "#123").map(|v| value(v.peek().unwrap()).unwrap()), Ok(Value::Id(123)));
+        assert_eq!(StepParser::parse(Rule::value, ".BAR.").map(|v| value(v.peek().unwrap()).unwrap()), Ok(Value::Enum("BAR".to_string())));
+        assert_eq!(StepParser::parse(Rule::value, "(1., '', #12)").map(|v| value(v.peek().unwrap()).unwrap()),
             Ok(Value::Tuple(vec![Value::Float(1.0), Value::String(String::new()), Value::Id(12)])));
-        assert_eq!(StepParser::parse(Rule::value, "('')").map(|v| value(v.peek().unwrap())), 
+        assert_eq!(StepParser::parse(Rule::value, "('')").map(|v| value(v.peek().unwrap()).unwrap()), 
             Ok(Value::Tuple(vec![Value::String(String::new())])));
         assert_eq!(StepParser::parse(Rule::elem,
             "#20=FACE_BOUND('',#64,.T.);"
-            ).map(|v| elem(v.peek().unwrap())),
+            ).map(|v| elem(v.peek().unwrap()).unwrap()),
             Ok((20,
                 Value::Desc(
                 "FACE_BOUND".to_string(),
