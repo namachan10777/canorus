@@ -23,6 +23,6 @@ desc = { symbol ~ "(" ~ ( value ~ ("," ~ value)* )? ~ ")" }
 value = { tuple | string | float | integer | id | bool_ | enum_ | xplicit | undefined | desc | symbol }
 
 elem = { id ~ "=" ~ value ~ ";"}
-header = { "HEADER;" ~ ( value ~ ";" )+ ~ "ENDSEC;" }
+header = { "HEADER;" ~ ( desc ~ ";" )+ ~ "ENDSEC;" }
 data = { "DATA;" ~ elem+ ~ "ENDSEC;" }
 step = { SOI ~ "ISO-10303-21;" ~ header ~ data ~ "END-ISO-10303-21;" ~ EOI }
