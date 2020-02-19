@@ -120,7 +120,7 @@ fn value(v: Pair<Rule>) -> Result<Value, PreprocessError> {
                     Ok(Value::Tuple(inner?))
                 },
                 Rule::xplicit => Ok(Value::Xplicit),
-                Rule::undefined => Ok(Value::Xplicit),
+                Rule::undefined => Ok(Value::Undefined),
                 Rule::desc => {
                     let mut inner = v
                         .peek()
