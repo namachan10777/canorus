@@ -36,28 +36,77 @@ pub struct AdvancedFace {
     elem: FaceElement,
 }
 
-fn parse_header(parsed_header: preprocess::Header) -> Header {
+#[derive(Debug)]
+pub enum ParseError {
+    HeaderParseError(String),
+}
+
+fn parse_header(parsed_header: preprocess::Header) -> Result<Header, ParseError> {
     let mut header = Header::default();
     for desc in parsed_header {
         match desc {
             preprocess::Value::Desc(name, args) =>
                 match name.as_str() {
                     "FILE_DESCRIPTION" => {
-                        println!("{:?}", args);
-                        header.description = args[0].clone().tuple().unwrap().iter().map(|v| v.clone().str().unwrap()).collect();
-                        header.implementation_level = args[1].clone().str().unwrap();
+                        header.description = args[0]
+                            .clone()
+                            .tuple()
+                            .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string()))?
+                            .iter()
+                            .map(|v| v
+                                .clone()
+                                .str()
+                                .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string())))
+                            .collect::<Result<Vec<String>, ParseError>>()?;
+                        header.implementation_level = args[1]
+                            .clone()
+                            .str()
+                            .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string()))?;
                     },
                     "FILE_NAME" => {
-                        header.name = args[0].clone().str().unwrap();
-                        header.time_stamp = args[1].clone().str().unwrap();
-                        header.author = args[2].clone().tuple().unwrap().iter().map(|v| v.clone().str().unwrap()).collect();
-                        header.organization = args[3].clone().tuple().unwrap().iter().map(|v| v.clone().str().unwrap()).collect();
-                        header.preprocessor_version = args[4].clone().str().unwrap();
-                        header.originating_system = args[5].clone().str().unwrap();
-                        header.originating_system = args[6].clone().str().unwrap();
+                        header.name = args[0]
+                            .clone()
+                            .str()
+                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?;
+                        header.time_stamp = args[1]
+                            .clone()
+                            .str()
+                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?;
+                        header.author = args[2]
+                            .clone()
+                            .tuple()
+                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                            .iter()
+                            .map(|v| v.clone().str().ok_or(ParseError::HeaderParseError("FILE_NAME".to_string())))
+                            .collect::<Result<Vec<String>, ParseError>>()?;
+                        header.organization = args[3]
+                            .clone()
+                            .tuple()
+                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                            .iter()
+                            .map(|v| v.clone().str().ok_or(ParseError::HeaderParseError("FILE_NAME".to_string())))
+                            .collect::<Result<Vec<String>, ParseError>>()?;
+                        header.preprocessor_version = args[4]
+                            .clone()
+                            .str()
+                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?;
+                        header.originating_system = args[5]
+                            .clone()
+                            .str()
+                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?;
+                        header.originating_system = args[6]
+                            .clone()
+                            .str()
+                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?;
                     },
                     "FILE_SCHEMA" => {
-                        header.file_schema = args[0].clone().tuple().unwrap().iter().map(|v| v.clone().str().unwrap()).collect();
+                        header.file_schema = args[0]
+                            .clone()
+                            .tuple()
+                            .ok_or(ParseError::HeaderParseError("FILE_SCHEMA".to_string()))?
+                            .iter()
+                            .map(|v| v.clone().str().ok_or(ParseError::HeaderParseError("FILE_SCHEMA".to_string())))
+                            .collect::<Result<Vec<String>, ParseError>>()?;
                     },
                     _ => {
                     }
@@ -65,7 +114,7 @@ fn parse_header(parsed_header: preprocess::Header) -> Header {
             _ => {}
         }
     }
-    header
+    Ok(header)
 }
 
 fn make_db(data: preprocess::Data) -> HashMap<u64, preprocess::Value> {
@@ -79,10 +128,9 @@ fn make_db(data: preprocess::Data) -> HashMap<u64, preprocess::Value> {
 fn find_mechanical_design_geometric_presentation_representation_id(map: &HashMap<u64,preprocess::Value>) -> Option<u64> {
     for key in map.keys() {
         match &map[key] {
-            preprocess::Value::Desc(desc_name, _) => {
+            preprocess::Value::Desc(desc_name, args) => {
                 match desc_name.as_str() {
                     "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" => {
-                        return Some(*key)
                     },
                     _ => {
                     },
@@ -125,7 +173,7 @@ fn parse_data(parsed_data: preprocess::Data) -> Vec<AdvancedFace> {
     advanced_face_ids.iter().map(|face_id| parse_advanced_face(&map, *face_id).unwrap()).collect()
 }
 
-pub fn parse(s : &str) -> (Header, Vec<AdvancedFace>) {
+pub fn parse(s : &str) -> Result<(Header, Vec<AdvancedFace>), ParseError> {
     let parsed = preprocess::parse(s).unwrap();
-    (parse_header(parsed.header), parse_data(parsed.data))
+    Ok((parse_header(parsed.header)?, parse_data(parsed.data)))
 }
