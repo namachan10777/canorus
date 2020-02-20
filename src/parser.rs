@@ -193,3 +193,51 @@ pub fn parse(s : &str) -> Result<(Header, Vec<AdvancedFace>), ParseError> {
     let parsed = preprocess::parse(s).unwrap();
     Ok((parse_header(parsed.header)?, parse_data(parsed.data)))
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::fs;
+    use std::io::Read;
+    use super::preprocess;
+
+    #[test]
+    fn test_parse_header() {
+        let mut f = fs::File::open("./example.STEP").unwrap();
+        let mut buf = String::new();
+        f.read_to_string(&mut buf).unwrap();
+        let step = preprocess::parse(&buf).unwrap();
+        let header = parse_header(step.header).unwrap();
+
+        assert_eq!(
+            header.description,
+            vec![""]);
+        assert_eq!(
+            header.implementation_level,
+            "2;1");
+        assert_eq!(
+            header.name,
+            r"D:\\Desktop\\\X2\8DB3\X0\-\X2\30AD30E330B930BF7528\X0\.stp");
+        assert_eq!(
+            header.time_stamp,
+            "2019-09-29T23:06:55+09:00");
+        assert_eq!(
+            header.author,
+            vec!["Tsuba"]);
+        assert_eq!(
+            header.organization,
+            vec![""]);
+        assert_eq!(
+            header.preprocessor_version,
+            "ST-DEVELOPER v17");
+        assert_eq!(
+            header.originating_system,
+            "Autodesk Inventor 2018");
+        assert_eq!(
+            &header.authorisation,
+            "");
+        assert_eq!(
+            header.file_schema,
+            vec!["AUTOMOTIVE_DESIGN { 1 0 10303 214 3 1 1 }"]);
+    }
+}
