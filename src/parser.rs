@@ -37,7 +37,7 @@ pub struct AdvancedFace {
     elem: FaceElement,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ParseError {
     HeaderParseError(String),
     DataParseError(String),
@@ -201,14 +201,16 @@ mod test {
     use std::io::Read;
     use super::preprocess;
 
-    #[test]
-    fn test_parse_header() {
+    fn prepare_test_data() -> preprocess::Step {
         let mut f = fs::File::open("./example.STEP").unwrap();
         let mut buf = String::new();
         f.read_to_string(&mut buf).unwrap();
-        let step = preprocess::parse(&buf).unwrap();
-        let header = parse_header(step.header).unwrap();
+        preprocess::parse(&buf).unwrap()
+    }
 
+    #[test]
+    fn test_parse_header() {
+        let header = parse_header(prepare_test_data().header).unwrap();
         assert_eq!(
             header.description,
             vec![""]);
@@ -239,5 +241,12 @@ mod test {
         assert_eq!(
             header.file_schema,
             vec!["AUTOMOTIVE_DESIGN { 1 0 10303 214 3 1 1 }"]);
+    }
+
+    #[test]
+    fn test_find_mechanical_design_geometric_presentation_representation_id() {
+        let data = make_db(prepare_test_data().data);
+        assert_eq!(find_mechanical_design_geometric_presentation_representation_id(&data),
+            Ok(13));
     }
 }
