@@ -54,28 +54,40 @@ impl From<pest::error::Error<Rule>> for PreprocessError {
 }
 
 impl Value {
-    pub fn str(self) -> Option<String> {
+    pub fn str(&self) -> Option<&String> {
         match self {
             Value::String(s) => Some(s),
             _ => None,
         }
     }
 
-    pub fn tuple(self) -> Option<Vec<Value>> {
+    pub fn tuple(&self) -> Option<&Vec<Value>> {
         match self {
             Value::Tuple(s) => Some(s),
             _ => None,
         }
     }
+
+    pub fn id(&self) -> Option<&u64> {
+        match self {
+            Value::Id(id) => Some(id),
+            _ => None,
+        }
+    }
 }
 
-pub type Header = Vec<Value>;
-pub type Data = Vec<(u64, Value)>;
+pub type Header = (String, Vec<Value>);
+
+#[derive(Debug, PartialEq)]
+pub enum Data {
+    Single(u64, String, Vec<Value>),
+    Aggregate(u64, Vec<(String, Vec<Value>)>),
+}
 
 #[derive(Debug)]
 pub struct Step {
-    pub header: Header,
-    pub data: Data,
+    pub header: Vec<Header>,
+    pub data: Vec<Data>,
 }
 
 fn value(v: Pair<Rule>) -> Result<Value, PreprocessError> {
@@ -122,21 +134,11 @@ fn value(v: Pair<Rule>) -> Result<Value, PreprocessError> {
                 Rule::xplicit => Ok(Value::Xplicit),
                 Rule::undefined => Ok(Value::Undefined),
                 Rule::desc => {
-                    let mut inner = v
+                    let (name, args) =
+                        desc(v
                         .peek()
-                        .ok_or(PreprocessError::InternalError)?
-                        .into_inner();
-                    let name = inner
-                        .next()
-                        .ok_or(PreprocessError::InternalError)?
-                        .as_str();
-                    let args: Result<Vec<Value>,PreprocessError> = inner
-                        .map(|v| value(v))
-                        .collect();
-                    Ok(Value::Desc(
-                        name.to_string(),
-                        args?,
-                    ))
+                        .ok_or(PreprocessError::InternalError)?)?;
+                    Ok(Value::Desc(name, args))
                 },
                 _ => Err(PreprocessError::InternalError),
             }
@@ -145,45 +147,68 @@ fn value(v: Pair<Rule>) -> Result<Value, PreprocessError> {
     }
 }
 
-fn elem(e: Pair<Rule>) -> Result<(u64, Value), PreprocessError> {
-    match e.as_rule() {
-        Rule::elem => {
-            let mut inner = e.into_inner();
-            let id: Result<u64, PreprocessError> = inner
+fn desc(d: Pair<Rule>) -> Result<(String, Vec<Value>), PreprocessError> {
+    match d.as_rule() {
+        Rule::desc => {
+            let mut inner = d.into_inner();
+            let name = inner
                 .next()
                 .ok_or(PreprocessError::InternalError)?
-                .as_str()
-                .get(1..)
-                .ok_or(PreprocessError::InternalError)?
-                .parse()
-                .map_err(From::from);
-            let body = value(
-                inner
-                .next()
-                .ok_or(PreprocessError::InternalError)?
-                )?;
-            Ok((id?, body))
+                .as_str();
+            let args: Result<Vec<Value>,PreprocessError> = inner
+                .map(|v| value(v))
+                .collect();
+            Ok((
+                name.to_string(),
+                args?,
+            ))
         },
         _ => Err(PreprocessError::InternalError),
     }
 }
 
-fn header(h: Pair<Rule>) -> Result<Header, PreprocessError> {
+fn header(h: Pair<Rule>) -> Result<Vec<Header>, PreprocessError> {
     match h.as_rule() {
         Rule::header => {
             let inner = h.into_inner();
-            inner.map(|v| value(v)).collect()
+            inner.map(|v| desc(v)).collect()
         },
         _ => Err(PreprocessError::InternalError),
     }
 }
 
-fn data(d: Pair<Rule>) -> Result<Data, PreprocessError> {
+fn data(d: Pair<Rule>) -> Result<Vec<Data>, PreprocessError> {
     match d.as_rule() {
-        Rule::data => {
-            let inner = d.into_inner();
-            inner.map(|v| elem(v)).collect()
-        },
+        Rule::data => Ok(d
+            .into_inner()
+            .map(|d| {
+                let mut inner = d.into_inner();
+                let id : Result<u64, PreprocessError> = inner
+                    .next()
+                    .ok_or(PreprocessError::InternalError)?
+                    .as_str()
+                    .get(1..)
+                    .ok_or(PreprocessError::InternalError)?
+                    .parse::<u64>()
+                    .map_err(From::from);
+                let id = id?;
+                let right = inner
+                    .next()
+                    .ok_or(PreprocessError::InternalError)?;
+                match right.as_rule() {
+                    Rule::desc =>
+                        desc(right)
+                        .map(|(name, args)| Data::Single(id, name, args)),
+                    Rule::aggregate =>
+                        right
+                        .into_inner()
+                        .map(|d| desc(d))
+                        .collect::<Result<Vec<(String, Vec<Value>)>, PreprocessError>>()
+                        .map(|aggregated| Data::Aggregate(id, aggregated)),
+                    _ => Err(PreprocessError::InternalError)
+                }
+            })
+            .collect::<Result<Vec<Data>, PreprocessError>>()?),
         _ => Err(PreprocessError::InternalError),
     }
 }
@@ -223,17 +248,22 @@ mod test {
             Ok(Value::Tuple(vec![Value::Float(1.0), Value::String(String::new()), Value::Id(12)])));
         assert_eq!(StepParser::parse(Rule::value, "('')").map(|v| value(v.peek().unwrap()).unwrap()), 
             Ok(Value::Tuple(vec![Value::String(String::new())])));
-        assert_eq!(StepParser::parse(Rule::elem,
-            "#20=FACE_BOUND('',#64,.T.);"
-            ).map(|v| elem(v.peek().unwrap()).unwrap()),
-            Ok((20,
-                Value::Desc(
-                "FACE_BOUND".to_string(),
+        assert_eq!(StepParser::parse(Rule::data,
+            r"DATA;
+            #10=MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION('',(#13),#501);
+            ENDSEC;"
+            ).map(|v| data(v.peek().unwrap()).unwrap()),
+            Ok(vec![
+                Data::Single(10,
+                "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string(),
                 vec![
                     Value::String("".to_string()),
-                    Value::Id(64),
-                    Value::Bool(true),
-                ]))));
+                    Value::Tuple(vec![
+                        Value::Id(13),
+                    ]),
+                    Value::Id(501),
+                ])
+            ]));
     }
 }
 

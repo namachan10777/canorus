@@ -11,11 +11,12 @@ pub struct Header {
     organization: Vec<String>,
     preprocessor_version: String,
     originating_system: String,
-    authorisation: Vec<String>,
+    authorisation: String,
     file_schema: Vec<String>,
 }
 
 type V3 = (f64, f64, f64);
+type DataDB = HashMap<u64, preprocess::Data>;
 
 #[derive(Debug)]
 pub struct Axis {
@@ -39,98 +40,113 @@ pub struct AdvancedFace {
 #[derive(Debug)]
 pub enum ParseError {
     HeaderParseError(String),
+    DataParseError(String),
 }
 
-fn parse_header(parsed_header: preprocess::Header) -> Result<Header, ParseError> {
+fn parse_header(parsed_header: Vec<preprocess::Header>) -> Result<Header, ParseError> {
     let mut header = Header::default();
-    for desc in parsed_header {
-        match desc {
-            preprocess::Value::Desc(name, args) =>
-                match name.as_str() {
-                    "FILE_DESCRIPTION" => {
-                        header.description = args[0]
-                            .clone()
-                            .tuple()
-                            .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string()))?
-                            .iter()
-                            .map(|v| v
-                                .clone()
-                                .str()
-                                .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string())))
-                            .collect::<Result<Vec<String>, ParseError>>()?;
-                        header.implementation_level = args[1]
-                            .clone()
-                            .str()
-                            .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string()))?;
-                    },
-                    "FILE_NAME" => {
-                        header.name = args[0]
-                            .clone()
-                            .str()
-                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?;
-                        header.time_stamp = args[1]
-                            .clone()
-                            .str()
-                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?;
-                        header.author = args[2]
-                            .clone()
-                            .tuple()
-                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
-                            .iter()
-                            .map(|v| v.clone().str().ok_or(ParseError::HeaderParseError("FILE_NAME".to_string())))
-                            .collect::<Result<Vec<String>, ParseError>>()?;
-                        header.organization = args[3]
-                            .clone()
-                            .tuple()
-                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
-                            .iter()
-                            .map(|v| v.clone().str().ok_or(ParseError::HeaderParseError("FILE_NAME".to_string())))
-                            .collect::<Result<Vec<String>, ParseError>>()?;
-                        header.preprocessor_version = args[4]
-                            .clone()
-                            .str()
-                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?;
-                        header.originating_system = args[5]
-                            .clone()
-                            .str()
-                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?;
-                        header.originating_system = args[6]
-                            .clone()
-                            .str()
-                            .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?;
-                    },
-                    "FILE_SCHEMA" => {
-                        header.file_schema = args[0]
-                            .clone()
-                            .tuple()
-                            .ok_or(ParseError::HeaderParseError("FILE_SCHEMA".to_string()))?
-                            .iter()
-                            .map(|v| v.clone().str().ok_or(ParseError::HeaderParseError("FILE_SCHEMA".to_string())))
-                            .collect::<Result<Vec<String>, ParseError>>()?;
-                    },
-                    _ => {
-                    }
-                },
-            _ => {}
+    for (name, args) in parsed_header {
+        match name.as_str() {
+            "FILE_DESCRIPTION" => {
+                header.description = args[0]
+                    .clone()
+                    .tuple()
+                    .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string()))?
+                    .iter()
+                    .map(|v| v
+                        .str()
+                        .map(|s| s.clone())
+                        .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string())))
+                    .collect::<Result<Vec<String>, ParseError>>()?;
+                header.implementation_level = args[1]
+                    .str()
+                    .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string()))?
+                    .clone();
+            },
+            "FILE_NAME" => {
+                header.name = args[0]
+                    .str()
+                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .clone();
+                header.time_stamp = args[1]
+                    .str()
+                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .clone();
+                header.author = args[2]
+                    .clone()
+                    .tuple()
+                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .iter()
+                    .map(|v| v.str().map(|s| s.clone()).ok_or(ParseError::HeaderParseError("FILE_NAME".to_string())))
+                    .collect::<Result<Vec<String>, ParseError>>()?;
+                header.organization = args[3]
+                    .clone()
+                    .tuple()
+                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .iter()
+                    .map(|v| v.str().map(|s| s.clone()).ok_or(ParseError::HeaderParseError("FILE_NAME".to_string())))
+                    .collect::<Result<Vec<String>, ParseError>>()?;
+                header.preprocessor_version = args[4]
+                    .str()
+                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .clone();
+                header.originating_system = args[5]
+                    .str()
+                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .clone();
+                header.authorisation = args[6]
+                    .str()
+                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .clone();
+            },
+            "FILE_SCHEMA" => {
+                header.file_schema = args[0]
+                    .tuple()
+                    .ok_or(ParseError::HeaderParseError("FILE_SCHEMA".to_string()))?
+                    .iter()
+                    .map(|v| v.str().map(|s| s.clone()).ok_or(ParseError::HeaderParseError("FILE_SCHEMA".to_string())))
+                    .collect::<Result<Vec<String>, ParseError>>()?
+                    .clone();
+            },
+            _ => {
+            }
         }
     }
     Ok(header)
 }
 
-fn make_db(data: preprocess::Data) -> HashMap<u64, preprocess::Value> {
+fn make_db(data: Vec<preprocess::Data>) -> HashMap<u64, preprocess::Data> {
     let mut map = HashMap::new();
-    for (id, desc) in data {
-        map.insert(id, desc);
+    for d in data {
+        match d {
+            preprocess::Data::Single(id, _, _) => {
+                map.insert(id, d);
+            },
+            preprocess::Data::Aggregate(id, _) => {
+                map.insert(id, d);
+            },
+        }
     }
     map
 }
 
-fn find_mechanical_design_geometric_presentation_representation_id(map: &HashMap<u64,preprocess::Value>) -> Option<u64> {
+fn find_mechanical_design_geometric_presentation_representation_id(map: &DataDB) -> Result<u64, ParseError> {
     for key in map.keys() {
         match &map[key] {
-            preprocess::Value::Desc(desc_name, args) => {
+            preprocess::Data::Single(_, desc_name, args) => {
                 match desc_name.as_str() {
                     "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" => {
+                        let styled_item_ids = args
+                            .get(1)
+                            .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?
+                            .tuple()
+                            .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?;
+                        return styled_item_ids
+                            .get(1)
+                            .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?
+                            .id()
+                            .map(|id| *id)
+                            .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()));
                     },
                     _ => {
                     },
@@ -139,30 +155,30 @@ fn find_mechanical_design_geometric_presentation_representation_id(map: &HashMap
             _ => {},
         }
     }
+    Err(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string())) 
+}
+
+fn get_styled_item_ids(map: &DataDB, id: u64) -> Option<Vec<u64>> {
     None
 }
 
-fn get_styled_item_ids(map: &HashMap<u64,preprocess::Value>, id: u64) -> Option<Vec<u64>> {
+fn get_manifold_solid_brep_id(map: &DataDB, id: u64) -> Option<u64> {
     None
 }
 
-fn get_manifold_solid_brep_id(map: &HashMap<u64,preprocess::Value>, id: u64) -> Option<u64> {
+fn get_closed_shell_id(map: &DataDB, id: u64) -> Option<u64> {
     None
 }
 
-fn get_closed_shell_id(map: &HashMap<u64,preprocess::Value>, id: u64) -> Option<u64> {
+fn get_advanced_face_ids(map: &DataDB, id: u64) -> Option<Vec<u64>> {
     None
 }
 
-fn get_advanced_face_ids(map: &HashMap<u64,preprocess::Value>, id: u64) -> Option<Vec<u64>> {
+fn parse_advanced_face(map: &DataDB, id: u64) -> Option<AdvancedFace> {
     None
 }
 
-fn parse_advanced_face(map: &HashMap<u64, preprocess::Value>, id: u64) -> Option<AdvancedFace> {
-    None
-}
-
-fn parse_data(parsed_data: preprocess::Data) -> Vec<AdvancedFace> {
+fn parse_data(parsed_data: Vec<preprocess::Data>) -> Vec<AdvancedFace> {
     let map = make_db(parsed_data);
     // ad-hoc
     let root_id = find_mechanical_design_geometric_presentation_representation_id(&map).unwrap();
