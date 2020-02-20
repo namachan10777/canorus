@@ -142,7 +142,7 @@ fn find_mechanical_design_geometric_presentation_representation_id(map: &DataDB)
                             .tuple()
                             .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?;
                         return styled_item_ids
-                            .get(1)
+                            .get(0)
                             .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?
                             .id()
                             .map(|id| *id)
