@@ -48,63 +48,63 @@ fn parse_header(parsed_header: Vec<preprocess::Header>) -> Result<Header, ParseE
     for (name, args) in parsed_header {
         match name.as_str() {
             "FILE_DESCRIPTION" => {
+                let e = || ParseError::HeaderParseError("FILE_DESCRIPTION".to_string());
                 header.description = args[0]
                     .clone()
                     .tuple()
-                    .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string()))?
+                    .ok_or_else(e)?
                     .iter()
-                    .map(|v| v
-                        .str()
-                        .map(|s| s.clone())
-                        .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string())))
+                    .map(|v| v.str().map(|s| s.clone()).ok_or_else(e))
                     .collect::<Result<Vec<String>, ParseError>>()?;
                 header.implementation_level = args[1]
                     .str()
-                    .ok_or(ParseError::HeaderParseError("FILE_DESCRIPTION".to_string()))?
+                    .ok_or_else(e)?
                     .clone();
             },
             "FILE_NAME" => {
+                let e = || ParseError::HeaderParseError("FILE_NAME".to_string());
                 header.name = args[0]
                     .str()
-                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .ok_or_else(e)?
                     .clone();
                 header.time_stamp = args[1]
                     .str()
-                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .ok_or_else(e)?
                     .clone();
                 header.author = args[2]
                     .clone()
                     .tuple()
-                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .ok_or_else(e)?
                     .iter()
-                    .map(|v| v.str().map(|s| s.clone()).ok_or(ParseError::HeaderParseError("FILE_NAME".to_string())))
+                    .map(|v| v.str().map(|s| s.clone()).ok_or_else(e))
                     .collect::<Result<Vec<String>, ParseError>>()?;
                 header.organization = args[3]
                     .clone()
                     .tuple()
-                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .ok_or_else(e)?
                     .iter()
-                    .map(|v| v.str().map(|s| s.clone()).ok_or(ParseError::HeaderParseError("FILE_NAME".to_string())))
+                    .map(|v| v.str().map(|s| s.clone()).ok_or_else(e))
                     .collect::<Result<Vec<String>, ParseError>>()?;
                 header.preprocessor_version = args[4]
                     .str()
-                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .ok_or_else(e)?
                     .clone();
                 header.originating_system = args[5]
                     .str()
-                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .ok_or_else(e)?
                     .clone();
                 header.authorisation = args[6]
                     .str()
-                    .ok_or(ParseError::HeaderParseError("FILE_NAME".to_string()))?
+                    .ok_or_else(e)?
                     .clone();
             },
             "FILE_SCHEMA" => {
+                let e = || ParseError::HeaderParseError("FILE_SCHEMA".to_string());
                 header.file_schema = args[0]
                     .tuple()
-                    .ok_or(ParseError::HeaderParseError("FILE_SCHEMA".to_string()))?
+                    .ok_or_else(e)?
                     .iter()
-                    .map(|v| v.str().map(|s| s.clone()).ok_or(ParseError::HeaderParseError("FILE_SCHEMA".to_string())))
+                    .map(|v| v.str().map(|s| s.clone()).ok_or_else(e))
                     .collect::<Result<Vec<String>, ParseError>>()?
                     .clone();
             },
@@ -131,6 +131,7 @@ fn make_db(data: Vec<preprocess::Data>) -> HashMap<u64, preprocess::Data> {
 }
 
 fn find_mechanical_design_geometric_presentation_representation_id(map: &DataDB) -> Result<u64, ParseError> {
+    let e = || ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string());
     for key in map.keys() {
         match &map[key] {
             preprocess::Data::Single(_, desc_name, args) => {
@@ -138,110 +139,113 @@ fn find_mechanical_design_geometric_presentation_representation_id(map: &DataDB)
                     "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" => {
                         let styled_item_ids = args
                             .get(1)
-                            .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?
+                            .ok_or_else(e)?
                             .tuple()
-                            .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?;
+                            .ok_or_else(e)?;
                         return styled_item_ids
                             .get(0)
-                            .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?
+                            .ok_or_else(e)?
                             .id()
                             .map(|id| *id)
-                            .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()));
+                            .ok_or_else(e);
                     },
-                    _ => {
-                    },
+                    _ => {},
                 }
             },
             _ => {},
         }
     }
-    Err(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string())) 
+    Err(e())
 }
 
 fn get_styled_item_ids(map: &DataDB, id: u64) -> Result<Vec<u64>, ParseError> {
+    let e = || ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string());
     match &map[&id] {
         preprocess::Data::Single(_, name, args) => {
             if name == "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" {
                 return args
                     .get(1)
-                    .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?
+                    .ok_or_else(e)?
                     .tuple()
-                    .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?
+                    .ok_or_else(e)?
                     .iter()
                     .map(|id| id.id().map(|id| *id))
                     .collect::<Option<Vec<u64>>>()
-                    .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()));
+                    .ok_or_else(e);
             }
             else {
-                Err(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))
+                Err(e())
             }
         },
-        _ => Err(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))
+        _ => Err(e())
     }
 }
 
 fn get_manifold_solid_brep_id(map: &DataDB, id: u64) -> Result<u64, ParseError> {
+    let e = || ParseError::DataParseError("STYLED_ITEM".to_owned());
     match &map[&id] {
         preprocess::Data::Single(_, name, args) => {
             if name == "STYLED_ITEM" {
                 return args
                     .get(2)
-                    .ok_or(ParseError::DataParseError("STYLED_ITEM".to_string()))?
+                    .ok_or_else(e)?
                     .id()
                     .map(|id| * id)
-                    .ok_or(ParseError::DataParseError("STYLED_ITEM".to_string()))
+                    .ok_or_else(e)
             }
             else {
-                Err(ParseError::DataParseError("STYLED_ITEM".to_string()))
+                Err(e())
             }
         },
-        _ => Err(ParseError::DataParseError("STYLED_ITEM".to_string()))
+        _ => Err(e())
     }
 }
 
 fn get_closed_shell_id(map: &DataDB, id: u64) -> Result<u64, ParseError> {
+    let e = || ParseError::DataParseError("MANIFOLD_SOLID_BREP".to_owned());
     match &map[&id] {
         preprocess::Data::Single(_, name, args) => {
             if name == "MANIFOLD_SOLID_BREP" {
                 return args
                     .get(1)
-                    .ok_or(ParseError::DataParseError("MANIFOLD_SOLID_BREP".to_string()))?
+                    .ok_or_else(e)?
                     .id()
                     .map(|id| * id)
-                    .ok_or(ParseError::DataParseError("MANIFOLD_SOLID_BREP".to_string()))
+                    .ok_or_else(e)
             }
             else {
-                Err(ParseError::DataParseError("MANIFOLD_SOLID_BREP".to_string()))
+                Err(e())
             }
         },
-        _ => Err(ParseError::DataParseError("MANIFOLD_SOLID_BREP".to_string()))
+        _ => Err(e())
     }
 }
 
 fn get_advanced_face_ids(map: &DataDB, id: u64) -> Result<Vec<u64>, ParseError> {
+    let e = || ParseError::DataParseError("CLOSED_SHELL".to_owned());
     match &map[&id] {
         preprocess::Data::Single(_, name, args) => {
             if name == "CLOSED_SHELL" {
                 return args
                     .get(1)
-                    .ok_or(ParseError::DataParseError("CLOSED_SHELL".to_string()))?
+                    .ok_or_else(e)?
                     .tuple()
-                    .ok_or(ParseError::DataParseError("CLOSED_SHELL".to_string()))?
+                    .ok_or_else(e)?
                     .iter()
                     .map(|id| id.id().map(|id| *id))
                     .collect::<Option<Vec<u64>>>()
-                    .ok_or(ParseError::DataParseError("CLOSED_SHELL".to_string()))
+                    .ok_or_else(e)
             }
             else {
-                Err(ParseError::DataParseError("CLOSED_SHELL".to_string()))
+                Err(e())
             }
         },
-        _ => Err(ParseError::DataParseError("CLOSED_SHELL".to_string()))
+        _ => Err(e())
     }
 }
 
 fn parse_advanced_face(map: &DataDB, id: u64) -> Result<AdvancedFace, ParseError> {
-    Err(ParseError::DataParseError("ADVANCED_FACE".to_string()))
+    Err(ParseError::DataParseError("ADVANCED_FACE".to_owned()))
 }
 
 fn parse_data(parsed_data: Vec<preprocess::Data>) -> Vec<AdvancedFace> {
