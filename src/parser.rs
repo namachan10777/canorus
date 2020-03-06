@@ -158,24 +158,90 @@ fn find_mechanical_design_geometric_presentation_representation_id(map: &DataDB)
     Err(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string())) 
 }
 
-fn get_styled_item_ids(map: &DataDB, id: u64) -> Option<Vec<u64>> {
-    None
+fn get_styled_item_ids(map: &DataDB, id: u64) -> Result<Vec<u64>, ParseError> {
+    match &map[&id] {
+        preprocess::Data::Single(_, name, args) => {
+            if name == "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" {
+                return args
+                    .get(1)
+                    .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?
+                    .tuple()
+                    .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))?
+                    .iter()
+                    .map(|id| id.id().map(|id| *id))
+                    .collect::<Option<Vec<u64>>>()
+                    .ok_or(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()));
+            }
+            else {
+                Err(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))
+            }
+        },
+        _ => Err(ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string()))
+    }
 }
 
-fn get_manifold_solid_brep_id(map: &DataDB, id: u64) -> Option<u64> {
-    None
+fn get_manifold_solid_brep_id(map: &DataDB, id: u64) -> Result<u64, ParseError> {
+    match &map[&id] {
+        preprocess::Data::Single(_, name, args) => {
+            if name == "STYLED_ITEM" {
+                return args
+                    .get(2)
+                    .ok_or(ParseError::DataParseError("STYLED_ITEM".to_string()))?
+                    .id()
+                    .map(|id| * id)
+                    .ok_or(ParseError::DataParseError("STYLED_ITEM".to_string()))
+            }
+            else {
+                Err(ParseError::DataParseError("STYLED_ITEM".to_string()))
+            }
+        },
+        _ => Err(ParseError::DataParseError("STYLED_ITEM".to_string()))
+    }
 }
 
-fn get_closed_shell_id(map: &DataDB, id: u64) -> Option<u64> {
-    None
+fn get_closed_shell_id(map: &DataDB, id: u64) -> Result<u64, ParseError> {
+    match &map[&id] {
+        preprocess::Data::Single(_, name, args) => {
+            if name == "MANIFOLD_SOLID_BREP" {
+                return args
+                    .get(1)
+                    .ok_or(ParseError::DataParseError("MANIFOLD_SOLID_BREP".to_string()))?
+                    .id()
+                    .map(|id| * id)
+                    .ok_or(ParseError::DataParseError("MANIFOLD_SOLID_BREP".to_string()))
+            }
+            else {
+                Err(ParseError::DataParseError("MANIFOLD_SOLID_BREP".to_string()))
+            }
+        },
+        _ => Err(ParseError::DataParseError("MANIFOLD_SOLID_BREP".to_string()))
+    }
 }
 
-fn get_advanced_face_ids(map: &DataDB, id: u64) -> Option<Vec<u64>> {
-    None
+fn get_advanced_face_ids(map: &DataDB, id: u64) -> Result<Vec<u64>, ParseError> {
+    match &map[&id] {
+        preprocess::Data::Single(_, name, args) => {
+            if name == "CLOSED_SHELL" {
+                return args
+                    .get(1)
+                    .ok_or(ParseError::DataParseError("CLOSED_SHELL".to_string()))?
+                    .tuple()
+                    .ok_or(ParseError::DataParseError("CLOSED_SHELL".to_string()))?
+                    .iter()
+                    .map(|id| id.id().map(|id| *id))
+                    .collect::<Option<Vec<u64>>>()
+                    .ok_or(ParseError::DataParseError("CLOSED_SHELL".to_string()))
+            }
+            else {
+                Err(ParseError::DataParseError("CLOSED_SHELL".to_string()))
+            }
+        },
+        _ => Err(ParseError::DataParseError("CLOSED_SHELL".to_string()))
+    }
 }
 
-fn parse_advanced_face(map: &DataDB, id: u64) -> Option<AdvancedFace> {
-    None
+fn parse_advanced_face(map: &DataDB, id: u64) -> Result<AdvancedFace, ParseError> {
+    Err(ParseError::DataParseError("ADVANCED_FACE".to_string()))
 }
 
 fn parse_data(parsed_data: Vec<preprocess::Data>) -> Vec<AdvancedFace> {
