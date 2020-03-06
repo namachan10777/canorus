@@ -74,6 +74,13 @@ impl Value {
             _ => None,
         }
     }
+
+    pub fn boolean(&self) -> Option<&bool> {
+        match self {
+            Value::Bool(b) => Some(b),
+            _ => None,
+        }
+    }
 }
 
 pub type Header = (String, Vec<Value>);
