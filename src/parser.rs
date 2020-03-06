@@ -235,7 +235,28 @@ fn get_advanced_face_ids(map: &DataDB, id: u64) -> Result<Vec<u64>, ParseError> 
 }
 
 fn parse_advanced_face(map: &DataDB, id: u64) -> Result<AdvancedFace, ParseError> {
-    Err(ParseError::DataParseError("ADVANCED_FACE".to_owned()))
+    let e = || ParseError::DataParseError("ADVANCED_FACE".to_owned());
+    match &map[&id] {
+        preprocess::Data::Single(_, name, args) => {
+            if name == "ADVANCED_FACE" {
+                let flag = args.get(3).ok_or_else(e)?.boolean().ok_or_else(e)?;
+                println!("{:?}", flag);
+                let plane_id = args.get(2).ok_or_else(e)?.id().ok_or_else(e)?;
+                println!("{:?}", plane_id);
+                let face_bounds_ids =
+                    args.get(1).ok_or_else(e)?
+                    .tuple().ok_or_else(e)?
+                    .iter().map(|id| id.id().map(|id| *id)).collect::<Option<Vec<u64>>>()
+                    .ok_or_else(e)?;
+                println!("{:?}", face_bounds_ids);
+                Err(e())
+            }
+            else {
+                Err(e())
+            }
+        }
+        _ => Err(e())
+    }
 }
 
 fn parse_data(parsed_data: Vec<preprocess::Data>) -> Vec<AdvancedFace> {
@@ -308,5 +329,11 @@ mod test {
         let data = make_db(prepare_test_data().data);
         assert_eq!(find_mechanical_design_geometric_presentation_representation_id(&data),
             Ok(10));
+    }
+
+    #[test]
+    fn test_parse_data() {
+        let data = prepare_test_data();
+        parse_data(data.data);
     }
 }
