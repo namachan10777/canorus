@@ -137,17 +137,7 @@ fn find_mechanical_design_geometric_presentation_representation_id(map: &DataDB)
             preprocess::Data::Single(_, desc_name, args) => {
                 match desc_name.as_str() {
                     "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" => {
-                        let styled_item_ids = args
-                            .get(1)
-                            .ok_or_else(e)?
-                            .tuple()
-                            .ok_or_else(e)?;
-                        return styled_item_ids
-                            .get(0)
-                            .ok_or_else(e)?
-                            .id()
-                            .map(|id| *id)
-                            .ok_or_else(e);
+                        return Ok(*key);
                     },
                     _ => {},
                 }
@@ -317,6 +307,6 @@ mod test {
     fn test_find_mechanical_design_geometric_presentation_representation_id() {
         let data = make_db(prepare_test_data().data);
         assert_eq!(find_mechanical_design_geometric_presentation_representation_id(&data),
-            Ok(13));
+            Ok(10));
     }
 }
