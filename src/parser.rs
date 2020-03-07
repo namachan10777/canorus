@@ -21,8 +21,8 @@ type DataDB = HashMap<u64, preprocess::Data>;
 #[derive(Debug)]
 pub struct Axis {
     p: V3,
-    axis1: V3,
-    axis2: V3,
+    direction: V3,
+    ref_direction: V3,
 }
 
 #[derive(Debug)]
@@ -281,15 +281,15 @@ fn parse_cartesian_point(map: &DataDB, id: u64) -> Result<V3, ParseError> {
     }
 }
 
-fn parse_axis2_placement_3d(map: &DataDB, id: u64) -> Result<Axis, ParseError> {
+fn parse_ref_direction_placement_3d(map: &DataDB, id: u64) -> Result<Axis, ParseError> {
     let e = || ParseError::DataParseError("AXIS2_PLACEMENT_3D".to_owned());
     match &map[&id] {
         preprocess::Data::Single(id, name, args) => {
             if name == "AXIS2_PLACEMENT_3D" {
                 let p = parse_cartesian_point(&map, *args.get(1).ok_or_else(e)?.id().ok_or_else(e)?)?;
-                let axis1 = parse_direction(&map, *args.get(2).ok_or_else(e)?.id().ok_or_else(e)?)?;
-                let axis2 = parse_direction(&map, *args.get(3).ok_or_else(e)?.id().ok_or_else(e)?)?;
-                Ok(Axis { p, axis1, axis2 })
+                let direction = parse_direction(&map, *args.get(2).ok_or_else(e)?.id().ok_or_else(e)?)?;
+                let ref_direction = parse_direction(&map, *args.get(3).ok_or_else(e)?.id().ok_or_else(e)?)?;
+                Ok(Axis { p, direction, ref_direction })
             }
             else {
                 Err(e())
@@ -305,12 +305,12 @@ fn parse_face_element(map: &DataDB, id: u64) -> Result<FaceElement, ParseError> 
         preprocess::Data::Single(id, name, args) => {
             match name.as_str() {
                 "PLANE" => {
-                    let axis = parse_axis2_placement_3d(&map, *(args.get(1).ok_or_else(e)?.id().ok_or_else(e)?))?;
+                    let axis = parse_ref_direction_placement_3d(&map, *(args.get(1).ok_or_else(e)?.id().ok_or_else(e)?))?;
                     Ok(FaceElement::Plane(axis))
                 },
                 "CYLINDRICAL_SURFACE" => {
                     let r = args.get(2).ok_or_else(e)?.float().ok_or_else(e)?;
-                    let axis = parse_axis2_placement_3d(&map, *(args.get(1).ok_or_else(e)?.id().ok_or_else(e)?))?;
+                    let axis = parse_ref_direction_placement_3d(&map, *(args.get(1).ok_or_else(e)?.id().ok_or_else(e)?))?;
                     Ok(FaceElement::Cylinder(*r, axis))
                 },
                 _ => Err(e())
