@@ -81,6 +81,13 @@ impl Value {
             _ => None,
         }
     }
+
+    pub fn float(&self) -> Option<&f64> {
+        match self {
+            Value::Float(f) => Some(f),
+            _ => None,
+        }
+    }
 }
 
 pub type Header = (String, Vec<Value>);
