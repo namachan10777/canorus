@@ -233,6 +233,92 @@ fn get_advanced_face_ids(map: &DataDB, id: u64) -> Result<Vec<u64>, ParseError> 
         _ => Err(e())
     }
 }
+fn parse_direction(map: &DataDB, id: u64) -> Result<V3, ParseError> {
+    let e = || ParseError::DataParseError("DIRECTION".to_owned());
+    match &map[&id] {
+        preprocess::Data::Single(id, name, args) => {
+            if name == "DIRECTION" {
+                let scalars =
+                    args.get(1).ok_or_else(e)?
+                    .tuple().ok_or_else(e)?
+                    .iter().map(|x| x.float().map(|f| *f)).collect::<Option<Vec<f64>>>().ok_or_else(e)?;
+                if scalars.len() == 3 {
+                    Ok((scalars[0], scalars[1], scalars[2]))
+                }
+                else {
+                    Err(e())
+                }
+            }
+            else {
+                Err(e())
+            }
+        },
+        _ => Err(e())
+    }
+}
+
+fn parse_cartesian_point(map: &DataDB, id: u64) -> Result<V3, ParseError> {
+    let e = || ParseError::DataParseError("CARTESIAN_POINT".to_owned());
+    match &map[&id] {
+        preprocess::Data::Single(id, name, args) => {
+            if name == "CARTESIAN_POINT" {
+                let scalars =
+                    args.get(1).ok_or_else(e)?
+                    .tuple().ok_or_else(e)?
+                    .iter().map(|x| x.float().map(|f| *f)).collect::<Option<Vec<f64>>>().ok_or_else(e)?;
+                if scalars.len() == 3 {
+                    Ok((scalars[0], scalars[1], scalars[2]))
+                }
+                else {
+                    Err(e())
+                }
+            }
+            else {
+                Err(e())
+            }
+        },
+        _ => Err(e())
+    }
+}
+
+fn parse_axis2_placement_3d(map: &DataDB, id: u64) -> Result<Axis, ParseError> {
+    let e = || ParseError::DataParseError("AXIS2_PLACEMENT_3D".to_owned());
+    match &map[&id] {
+        preprocess::Data::Single(id, name, args) => {
+            if name == "AXIS2_PLACEMENT_3D" {
+                let p = parse_cartesian_point(&map, *args.get(1).ok_or_else(e)?.id().ok_or_else(e)?)?;
+                let axis1 = parse_direction(&map, *args.get(2).ok_or_else(e)?.id().ok_or_else(e)?)?;
+                let axis2 = parse_direction(&map, *args.get(3).ok_or_else(e)?.id().ok_or_else(e)?)?;
+                Ok(Axis { p, axis1, axis2 })
+            }
+            else {
+                Err(e())
+            }
+        },
+        _ => Err(e())
+    }
+}
+
+fn parse_face_element(map: &DataDB, id: u64) -> Result<FaceElement, ParseError> {
+    let e = || ParseError::DataParseError("face element".to_owned());
+    match &map[&id] {
+        preprocess::Data::Single(id, name, args) => {
+            match name.as_str() {
+                "PLANE" => {
+                    let axis = parse_axis2_placement_3d(&map, *(args.get(1).ok_or_else(e)?.id().ok_or_else(e)?))?;
+                    Ok(FaceElement::Plane(axis))
+                },
+                "CYLINDRICAL_SURFACE" => {
+                    let r = args.get(2).ok_or_else(e)?.float().ok_or_else(e)?;
+                    let axis = parse_axis2_placement_3d(&map, *(args.get(1).ok_or_else(e)?.id().ok_or_else(e)?))?;
+                    Ok(FaceElement::Cylinder(*r, axis))
+                },
+                _ => Err(e())
+            }
+        },
+        _ => Err(e())
+    }
+}
 
 fn parse_advanced_face(map: &DataDB, id: u64) -> Result<AdvancedFace, ParseError> {
     let e = || ParseError::DataParseError("ADVANCED_FACE".to_owned());
@@ -240,16 +326,11 @@ fn parse_advanced_face(map: &DataDB, id: u64) -> Result<AdvancedFace, ParseError
         preprocess::Data::Single(_, name, args) => {
             if name == "ADVANCED_FACE" {
                 let flag = args.get(3).ok_or_else(e)?.boolean().ok_or_else(e)?;
-                println!("{:?}", flag);
-                let plane_id = args.get(2).ok_or_else(e)?.id().ok_or_else(e)?;
-                println!("{:?}", plane_id);
-                let face_bounds_ids =
-                    args.get(1).ok_or_else(e)?
-                    .tuple().ok_or_else(e)?
-                    .iter().map(|id| id.id().map(|id| *id)).collect::<Option<Vec<u64>>>()
-                    .ok_or_else(e)?;
-                println!("{:?}", face_bounds_ids);
-                Err(e())
+                let element_id = args.get(2).ok_or_else(e)?.id().ok_or_else(e)?;
+                Ok(AdvancedFace {
+                    flag: *flag,
+                    elem: parse_face_element(&map, *element_id)?
+                })
             }
             else {
                 Err(e())
