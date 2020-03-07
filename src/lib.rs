@@ -5,5 +5,8 @@ extern crate pest;
 extern crate pest_derive;
 
 pub fn parse(s: &str) {
-    println!("{:?}", parser::parse(s));
+    let (header, data) = parser::parse(s).unwrap();
+    for d in data {
+        println!("{:?}", d);
+    }
 }
