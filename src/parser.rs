@@ -381,10 +381,10 @@ mod test {
             "2;1");
         assert_eq!(
             header.name,
-            r"D:\\Desktop\\\X2\8DB3\X0\-\X2\30AD30E330B930BF7528\X0\.stp");
+            r"D:\\Desktop\\Part1.stp");
         assert_eq!(
             header.time_stamp,
-            "2019-09-29T23:06:55+09:00");
+            "2020-01-17T21:29:41+09:00");
         assert_eq!(
             header.author,
             vec!["Tsuba"]);
