@@ -20,6 +20,30 @@ pub struct Proc {
     size: V3,
 }
 
+fn get_align_mat(y_axis: &V3) -> Mat3x3 {
+    let theta_y = (y_axis.x().powi(2) + y_axis.y().powi(2)).sqrt().atan2(y_axis.z());
+    let theta_z = y_axis.y().atan2(y_axis.x());
+    let r_y = Mat3x3([
+        V3([ theta_y.cos(), 0.0, theta_y.sin()]),
+        V3([           0.0, 1.0,           0.0]),
+        V3([-theta_y.sin(), 0.0, theta_y.cos()]),
+    ]);
+    let r_z = Mat3x3([
+        V3([theta_z.cos(), -theta_z.sin(), 0.0]),
+        V3([theta_z.sin(),  theta_z.cos(), 0.0]),
+        V3([          0.0,            0.0, 1.0]),
+    ]);
+    r_y.prod(&r_z)
+}
+
+fn align(mat: &Mat3x3, ax: &Axis) -> Axis {
+    Axis {
+        p: mat.prod_vec(&ax.p),
+        direction: mat.prod_vec(&ax.direction),
+        ref_direction: mat.prod_vec(&ax.ref_direction),
+    }
+}
+
 fn ax_of_face(face: &AdvancedFace) -> Axis {
     match &face.elem {
         FaceElement::Plane(ax) => ax.clone(),
@@ -27,7 +51,7 @@ fn ax_of_face(face: &AdvancedFace) -> Axis {
     }
 }
 
-fn get_size_and_origin(axes: &Vec<&Axis>) -> (V3, V3) {
+fn get_size_and_origin(axes: &Vec<Axis>) -> (V3, V3) {
     let mut mins = [1000000.0;3];
     let mut maxs = [0.0;3];
     for ax in axes {
@@ -45,7 +69,7 @@ fn get_size_and_origin(axes: &Vec<&Axis>) -> (V3, V3) {
     let origin = V3([
         (mins[0] + maxs[0]) / 2.,
         (mins[1] + maxs[1]) / 2.,
-        (mins[2] + maxs[2]) / 2.,
+        0.0,
     ]);
     (size, origin)
 }
@@ -81,7 +105,7 @@ fn exclude_side_planes<'a>(axes: &'a Vec<&'a Axis>) -> Vec<&'a Axis> {
     r
 }
 
-fn cylinders_to_drills(y_ax: &V3, cylinders: &Vec<(&f64, &Axis)>) -> Vec<Drill> {
+fn cylinders_to_drills(y_ax: &V3, cylinders: &Vec<(f64, Axis)>) -> Vec<Drill> {
     let mut drills = Vec::new();
     for cylinder in cylinders {
     }
@@ -98,16 +122,21 @@ impl Proc {
                     FaceElement::Cylinder(_, _) => None
                 })
             .collect();
+        let (dv, dmax) = get_y_axis_and_depth(&exclude_side_planes(&plane_axes));
+        let r_mat = get_align_mat(&dv);
+        let plane_axes =
+            plane_axes.iter()
+            .map(|ax| align(&r_mat, &ax))
+            .collect();
         let (size, origin) = get_size_and_origin(&plane_axes);
         let cylinders =
             faces.iter()
             .filter_map(
                 |face| match &face.elem {
-                    FaceElement::Cylinder(r, ax) => Some((r, ax)),
+                    FaceElement::Cylinder(r, ax) => Some((*r, align(&r_mat, &ax))),
                     _ => None,
                 })
             .collect();
-        let (dv, dmax) = get_y_axis_and_depth(&exclude_side_planes(&plane_axes));
         Proc {
             size: size,
             center: origin,
