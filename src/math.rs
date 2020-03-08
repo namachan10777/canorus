@@ -58,10 +58,26 @@ impl V3 {
         ])
     }
 
+    pub fn sub(&self, v: &Self) -> Self {
+        V3([
+            self.x() - v.x(),
+            self.y() - v.y(),
+            self.z() - v.z(),
+        ])
+    }
+
     pub fn approx(&self, v: &Self) -> bool {
         (self.x() - v.x()).abs() < 10e-15
         && (self.y() - v.y()).abs() < 10e-15
         && (self.z() - v.z()).abs() < 10e-15
+    }
+
+    pub fn round(&self) -> Self {
+        V3([
+            (self.x() * 100.0).round() / 100.,
+            (self.y() * 100.0).round() / 100.,
+            (self.z() * 100.0).round() / 100.,
+        ])
     }
 
     pub fn x(&self) -> f64 {

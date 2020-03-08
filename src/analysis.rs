@@ -3,8 +3,9 @@ use super::math::{V3, Mat3x3};
 
 #[derive(Debug)]
 pub struct Drill {
-    pub y: f64,
+    pub d: f64,
     pub theta: f64,
+    pub slide: f64,
 }
 
 #[derive(Debug)]
@@ -21,8 +22,8 @@ pub struct Proc {
 }
 
 fn get_align_mat(y_axis: &V3) -> Mat3x3 {
-    let theta_y = (y_axis.x().powi(2) + y_axis.y().powi(2)).sqrt().atan2(y_axis.z());
-    let theta_z = y_axis.y().atan2(y_axis.x());
+    let theta_y = -(y_axis.x().powi(2) + y_axis.y().powi(2)).sqrt().atan2(y_axis.z());
+    let theta_z = -y_axis.y().atan2(y_axis.x());
     let r_y = Mat3x3([
         V3([ theta_y.cos(), 0.0, theta_y.sin()]),
         V3([           0.0, 1.0,           0.0]),
@@ -51,7 +52,8 @@ fn ax_of_face(face: &AdvancedFace) -> Axis {
     }
 }
 
-fn get_size_and_origin(axes: &Vec<Axis>) -> (V3, V3) {
+
+fn get_size_and_origin(y_axis: &V3, depth: f64, axes: &Vec<Axis>) -> (V3, V3) {
     let mut mins = [1000000.0;3];
     let mut maxs = [0.0;3];
     for ax in axes {
@@ -105,11 +107,25 @@ fn exclude_side_planes<'a>(axes: &'a Vec<&'a Axis>) -> Vec<&'a Axis> {
     r
 }
 
-fn cylinders_to_drills(y_ax: &V3, cylinders: &Vec<(f64, Axis)>) -> Vec<Drill> {
-    let mut drills = Vec::new();
-    for cylinder in cylinders {
+fn cylinders_to_drills(orig: &V3, cylinders: &Vec<(f64, Axis)>) -> Vec<Drill> {
+    if cylinders.len() > 0 {
+        let mut drills = Vec::new();
+        for cylinder in cylinders {
+            let p = cylinder.1.p.sub(orig);
+            let dir = &cylinder.1.direction;
+            let theta = dir.y().atan2(dir.x());
+            let slide = p.dot(&dir.cross(&V3([0.0, 0.0, 1.0])));
+            drills.push(Drill {
+                theta,
+                d: p.z(),
+                slide,
+            });
+        }
+        drills
     }
-    drills
+    else {
+        Vec::new()
+    }
 }
 
 impl Proc {
@@ -128,7 +144,7 @@ impl Proc {
             plane_axes.iter()
             .map(|ax| align(&r_mat, &ax))
             .collect();
-        let (size, origin) = get_size_and_origin(&plane_axes);
+        let (size, origin) = get_size_and_origin(&dv, dmax, &plane_axes);
         let cylinders =
             faces.iter()
             .filter_map(
@@ -139,11 +155,11 @@ impl Proc {
             .collect();
         Proc {
             size: size,
-            center: origin,
+            center: origin.clone(),
             cutter: Cutter {
                 y: dmax,
             },
-            drills: cylinders_to_drills(&dv, &cylinders),
+            drills: cylinders_to_drills(&origin, &cylinders),
         }
     }
 }
