@@ -15,14 +15,14 @@ pub struct Header {
     file_schema: Vec<String>,
 }
 
-type V3 = (f64, f64, f64);
+pub type V3 = (f64, f64, f64);
 type DataDB = HashMap<u64, preprocess::Data>;
 
 #[derive(Debug)]
 pub struct Axis {
-    p: V3,
-    direction: V3,
-    ref_direction: V3,
+    pub p: V3,
+    pub direction: V3,
+    pub ref_direction: V3,
 }
 
 #[derive(Debug)]
