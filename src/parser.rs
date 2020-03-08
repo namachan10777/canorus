@@ -243,7 +243,11 @@ fn parse_direction(map: &DataDB, id: u64) -> Result<V3, ParseError> {
                     .tuple().ok_or_else(e)?
                     .iter().map(|x| x.float().map(|f| *f)).collect::<Option<Vec<f64>>>().ok_or_else(e)?;
                 if scalars.len() == 3 {
-                    Ok((scalars[0], scalars[1], scalars[2]))
+                    Ok(V3 ([
+                        scalars[0],
+                        scalars[1],
+                        scalars[2],
+                    ]))
                 }
                 else {
                     Err(e())
@@ -267,7 +271,11 @@ fn parse_cartesian_point(map: &DataDB, id: u64) -> Result<V3, ParseError> {
                     .tuple().ok_or_else(e)?
                     .iter().map(|x| x.float().map(|f| *f)).collect::<Option<Vec<f64>>>().ok_or_else(e)?;
                 if scalars.len() == 3 {
-                    Ok((scalars[0], scalars[1], scalars[2]))
+                    Ok(V3 ([
+                        scalars[0],
+                        scalars[1],
+                        scalars[2],
+                    ]))
                 }
                 else {
                     Err(e())
