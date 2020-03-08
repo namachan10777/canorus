@@ -15,10 +15,10 @@ pub struct Cutter {
 
 #[derive(Debug)]
 pub struct Proc {
-    drills: Vec<Drill>,
-    cutter: Cutter,
-    center: V3,
-    size: V3,
+    pub drills: Vec<Drill>,
+    pub cutter: Cutter,
+    pub center: V3,
+    pub size: V3,
 }
 
 fn get_align_mat(y_axis: &V3) -> Mat3x3 {
