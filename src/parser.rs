@@ -1,4 +1,5 @@
 use super::preprocess;
+use super::math::V3;
 use std::collections::HashMap;
 
 #[derive(Default, Debug)]
@@ -15,26 +16,25 @@ pub struct Header {
     file_schema: Vec<String>,
 }
 
-pub type V3 = (f64, f64, f64);
 type DataDB = HashMap<u64, preprocess::Data>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Axis {
     pub p: V3,
     pub direction: V3,
     pub ref_direction: V3,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum FaceElement {
     Cylinder(f64, Axis),
     Plane(Axis),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AdvancedFace {
-    flag: bool,
-    elem: FaceElement,
+    pub flag: bool,
+    pub elem: FaceElement,
 }
 
 #[derive(Debug, PartialEq)]
