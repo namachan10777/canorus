@@ -1,47 +1,40 @@
-use super::parser::{Axis, AdvancedFace, FaceElement, V3};
+use super::parser::{Axis, AdvancedFace, FaceElement};
+use super::math::{V3, Mat3x3};
 
-type L3x3 = [[f64; 3]; 3];
-
-fn inv(a: L3x3) -> L3x3 {
-    for i in 0..3 {
-        for j in 0..3 {
-        }
-    }
-    a
-}
-
-fn prod_mat_mat(a: &L3x3, b: &L3x3) -> L3x3 {
-    let y = L3x3::default();
-    for i in 0..3 {
-        for j in 0..3 {
-        }
-    }
-    y
-}
-
-fn prod_mat_vec(a: &L3x3, b: V3) -> V3 {
-    b
-}
-
-pub fn align(dir: &V3, ref_dir: &V3, axis: Axis) -> Axis {
-    let (x1, y1, z1) = dir;
-    let (x2, y2, z2) = ref_dir;
-    let y = [
-        [*x1, *x2, 1.0],
-        [*y1, *y2, 0.0],
-        [*z1, *z2, 0.0],
-    ];
-    let (x3, y3, z3) = axis.direction;
-    let (x4, y4, z4) = axis.ref_direction;
-    let x = [
-        [x3, x4, 1.0],
-        [y3, y4, 0.0],
-        [z3, z4, 0.0],
-    ];
-    let a = prod_mat_mat(&y, &inv(x));
+fn align(ref_dir: &V3, axis: Axis) -> Axis {
+    let dir1 = ref_dir;
+    let dir2 = &axis.ref_direction;
+    let theta_y =
+        (dir1.x().powi(2) + dir1.y().powi(2)).sqrt().atan2(dir1.z())
+        - (dir2.x().powi(2) + dir2.y().powi(2)).sqrt().atan2(dir2.z());
+    let theta_z =
+        dir1.y().atan2(dir1.x())
+        - dir2.y().atan2(dir2.x());
+    let r_y = Mat3x3([
+        V3([ theta_y.cos(), 0.0, theta_y.sin()]),
+        V3([           0.0, 1.0,           0.0]),
+        V3([-theta_y.sin(), 0.0, theta_y.cos()]),
+    ]);
+    let r_z = Mat3x3([
+        V3([theta_z.cos(), -theta_z.sin(), 0.0]),
+        V3([theta_z.sin(),  theta_z.cos(), 0.0]),
+        V3([          0.0,            0.0, 1.0]),
+    ]);
+    let r = r_y.prod(&r_z);
+    println!("{:?}", r.prod_vec(&axis.ref_direction));
     Axis {
-        p: prod_mat_vec(&a, axis.p),
-        direction: prod_mat_vec(&a, axis.direction),
-        ref_direction: prod_mat_vec(&a, axis.ref_direction),
+                    p: r.prod_vec(&axis.p),
+            direction: r.prod_vec(&axis.direction),
+        ref_direction: r.prod_vec(&axis.ref_direction),
+    }
+}
+
+pub fn align_face(face: AdvancedFace) -> AdvancedFace {
+    AdvancedFace {
+        flag: face.flag,
+        elem: match face.elem {
+            FaceElement::Plane(axis) => FaceElement::Plane(align(&V3([1.0, 0.0, 0.0]), axis)),
+            FaceElement::Cylinder(r, axis) => FaceElement::Cylinder(r, align(&V3([1.0, 0.0, 0.0]), axis)),
+        },
     }
 }

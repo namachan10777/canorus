@@ -8,7 +8,7 @@ extern crate pest_derive;
 
 pub fn parse(s: &str) {
     let (header, data) = parser::parse(s).unwrap();
-    for d in data {
-        println!("{:?}", d);
+    for d in data.iter().map(|face| analysis::align_face(face.clone())) {
+        //println!("{:?}", d);
     }
 }
