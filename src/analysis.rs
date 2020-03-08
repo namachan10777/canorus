@@ -1,40 +1,98 @@
 use super::parser::{Axis, AdvancedFace, FaceElement};
 use super::math::{V3, Mat3x3};
 
-fn align(ref_dir: &V3, axis: Axis) -> Axis {
-    let dir1 = ref_dir;
-    let dir2 = &axis.ref_direction;
-    let theta_y =
-        (dir1.x().powi(2) + dir1.y().powi(2)).sqrt().atan2(dir1.z())
-        - (dir2.x().powi(2) + dir2.y().powi(2)).sqrt().atan2(dir2.z());
-    let theta_z =
-        dir1.y().atan2(dir1.x())
-        - dir2.y().atan2(dir2.x());
-    let r_y = Mat3x3([
-        V3([ theta_y.cos(), 0.0, theta_y.sin()]),
-        V3([           0.0, 1.0,           0.0]),
-        V3([-theta_y.sin(), 0.0, theta_y.cos()]),
-    ]);
-    let r_z = Mat3x3([
-        V3([theta_z.cos(), -theta_z.sin(), 0.0]),
-        V3([theta_z.sin(),  theta_z.cos(), 0.0]),
-        V3([          0.0,            0.0, 1.0]),
-    ]);
-    let r = r_y.prod(&r_z);
-    println!("{:?}", r.prod_vec(&axis.ref_direction));
-    Axis {
-                    p: r.prod_vec(&axis.p),
-            direction: r.prod_vec(&axis.direction),
-        ref_direction: r.prod_vec(&axis.ref_direction),
+#[derive(Debug)]
+pub struct Drill {
+    pub y: f64,
+    pub theta: f64,
+}
+
+#[derive(Debug)]
+pub struct Cutter {
+    pub y: f64,
+}
+
+#[derive(Debug)]
+pub struct Proc {
+    drills: Vec<Drill>,
+    cutter: Cutter,
+}
+
+fn ax_of_face(face: &AdvancedFace) -> Axis {
+    match &face.elem {
+        FaceElement::Plane(ax) => ax.clone(),
+        FaceElement::Cylinder(_, ax) => ax.clone(),
     }
 }
 
-pub fn align_face(face: AdvancedFace) -> AdvancedFace {
-    AdvancedFace {
-        flag: face.flag,
-        elem: match face.elem {
-            FaceElement::Plane(axis) => FaceElement::Plane(align(&V3([1.0, 0.0, 0.0]), axis)),
-            FaceElement::Cylinder(r, axis) => FaceElement::Cylinder(r, align(&V3([1.0, 0.0, 0.0]), axis)),
-        },
+fn origin(x_ax: &V3, axes: Vec<&Axis>) -> (f64, f64) {
+    for ax in axes {
+    }
+    (0.0, 0.0)
+}
+
+fn get_y_axis_and_depth(axes: Vec<&Axis>) -> (V3, f64) {
+    let mut dmax = 0.0;
+    let mut dv = V3::default();
+    for ax in axes {
+        let d = ax.direction.dot(&ax.p);
+        if d > dmax {
+            dmax = d;
+            dv = ax.direction.clone();
+        }
+    }
+    (dv, dmax)
+}
+
+fn exclude_side_planes(axes: Vec<&Axis>) -> Vec<&Axis> {
+    let mut cnts = vec![0; axes.len()];
+    for i in 0..axes.len() {
+        for j in 0..axes.len() {
+            if !axes[i].direction.are_independent(&axes[j].direction) {
+                cnts[i] += 1;
+            }
+        }
+    }
+    let mut r = Vec::new();
+    for i in 0..axes.len() {
+        if cnts[i] <= 2 {
+            r.push(axes[i])
+        }
+    }
+    r
+}
+
+fn cylinders_to_drills(y_ax: &V3, cylinders: Vec<(&f64, &Axis)>) -> Vec<Drill> {
+    let mut drills = Vec::new();
+    for cylinder in cylinders {
+    }
+    drills
+}
+
+impl Proc {
+    pub fn new(faces: &[AdvancedFace]) -> Self {
+        let plane_axes =
+            faces.iter()
+            .filter_map(
+                |face| match &face.elem {
+                    FaceElement::Plane(ax) => Some(ax),
+                    FaceElement::Cylinder(_, _) => None
+                })
+            .collect();
+        let cylinders =
+            faces.iter()
+            .filter_map(
+                |face| match &face.elem {
+                    FaceElement::Cylinder(r, ax) => Some((r, ax)),
+                    _ => None,
+                })
+            .collect();
+        let (dv, dmax) = get_y_axis_and_depth(exclude_side_planes(plane_axes));
+        Proc {
+            cutter: Cutter {
+                y: dmax,
+            },
+            drills: cylinders_to_drills(&dv, cylinders),
+        }
     }
 }

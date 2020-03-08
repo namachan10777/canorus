@@ -326,7 +326,31 @@ fn parse_face_element(map: &DataDB, id: u64) -> Result<FaceElement, ParseError> 
         },
         _ => Err(e())
     }
+}/*
+
+type EdgeLoop = Vec<OrientedEdge>;
+type OrientedEdge = Vec<EdgeCurve>;
+type EdgeCurve = Vec<V3>;
+
+enum FaceBound {
+    Outer(EdgeLoop),
+    Inner(EdgeLoop),
 }
+
+fn parse_face_outer(map: &DataDB, id: u64) -> FaceBound {
+}
+
+fn parse_edge_loop(map: &DataDB, id: u64) -> EdgeLoop {
+}
+
+fn parse_oriented_edge(map: &DataDB, id: u64) -> OrientedEdge {
+}
+
+fn parse_edge_curve(map: &DataDB, id: u64) -> EdgeCurve {
+}
+
+fn parse_vertex_point(map: &DataDB, id: u64) -> V3 {
+}*/
 
 fn parse_advanced_face(map: &DataDB, id: u64) -> Result<AdvancedFace, ParseError> {
     let e = || ParseError::DataParseError("ADVANCED_FACE".to_owned());
