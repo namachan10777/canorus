@@ -9,5 +9,6 @@ extern crate pest_derive;
 pub fn parse(s: &str) {
     let (header, data) = parser::parse(s).unwrap();
     let proc = analysis::Proc::new(&data);
+    println!("{:#?}", header);
     println!("{:#?}", proc);
 }

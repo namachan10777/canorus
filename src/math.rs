@@ -72,14 +72,6 @@ impl V3 {
         && (self.z() - v.z()).abs() < 10e-15
     }
 
-    pub fn round(&self) -> Self {
-        V3([
-            (self.x() * 100.0).round() / 100.,
-            (self.y() * 100.0).round() / 100.,
-            (self.z() * 100.0).round() / 100.,
-        ])
-    }
-
     pub fn x(&self) -> f64 {
         self.0[0]
     }

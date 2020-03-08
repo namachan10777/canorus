@@ -134,7 +134,7 @@ fn find_mechanical_design_geometric_presentation_representation_id(map: &DataDB)
     let e = || ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string());
     for key in map.keys() {
         match &map[key] {
-            preprocess::Data::Single(_, desc_name, args) => {
+            preprocess::Data::Single(_, desc_name, _) => {
                 match desc_name.as_str() {
                     "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" => {
                         return Ok(*key);
@@ -236,7 +236,7 @@ fn get_advanced_face_ids(map: &DataDB, id: u64) -> Result<Vec<u64>, ParseError> 
 fn parse_direction(map: &DataDB, id: u64) -> Result<V3, ParseError> {
     let e = || ParseError::DataParseError("DIRECTION".to_owned());
     match &map[&id] {
-        preprocess::Data::Single(id, name, args) => {
+        preprocess::Data::Single(_, name, args) => {
             if name == "DIRECTION" {
                 let scalars =
                     args.get(1).ok_or_else(e)?
@@ -264,7 +264,7 @@ fn parse_direction(map: &DataDB, id: u64) -> Result<V3, ParseError> {
 fn parse_cartesian_point(map: &DataDB, id: u64) -> Result<V3, ParseError> {
     let e = || ParseError::DataParseError("CARTESIAN_POINT".to_owned());
     match &map[&id] {
-        preprocess::Data::Single(id, name, args) => {
+        preprocess::Data::Single(_, name, args) => {
             if name == "CARTESIAN_POINT" {
                 let scalars =
                     args.get(1).ok_or_else(e)?
@@ -292,7 +292,7 @@ fn parse_cartesian_point(map: &DataDB, id: u64) -> Result<V3, ParseError> {
 fn parse_ref_direction_placement_3d(map: &DataDB, id: u64) -> Result<Axis, ParseError> {
     let e = || ParseError::DataParseError("AXIS2_PLACEMENT_3D".to_owned());
     match &map[&id] {
-        preprocess::Data::Single(id, name, args) => {
+        preprocess::Data::Single(_, name, args) => {
             if name == "AXIS2_PLACEMENT_3D" {
                 let p = parse_cartesian_point(&map, *args.get(1).ok_or_else(e)?.id().ok_or_else(e)?)?;
                 let direction = parse_direction(&map, *args.get(2).ok_or_else(e)?.id().ok_or_else(e)?)?;
@@ -310,7 +310,7 @@ fn parse_ref_direction_placement_3d(map: &DataDB, id: u64) -> Result<Axis, Parse
 fn parse_face_element(map: &DataDB, id: u64) -> Result<FaceElement, ParseError> {
     let e = || ParseError::DataParseError("face element".to_owned());
     match &map[&id] {
-        preprocess::Data::Single(id, name, args) => {
+        preprocess::Data::Single(_, name, args) => {
             match name.as_str() {
                 "PLANE" => {
                     let axis = parse_ref_direction_placement_3d(&map, *(args.get(1).ok_or_else(e)?.id().ok_or_else(e)?))?;

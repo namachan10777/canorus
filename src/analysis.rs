@@ -45,15 +45,7 @@ fn align(mat: &Mat3x3, ax: &Axis) -> Axis {
     }
 }
 
-fn ax_of_face(face: &AdvancedFace) -> Axis {
-    match &face.elem {
-        FaceElement::Plane(ax) => ax.clone(),
-        FaceElement::Cylinder(_, ax) => ax.clone(),
-    }
-}
-
-
-fn get_size_and_origin(y_axis: &V3, depth: f64, axes: &Vec<Axis>) -> (V3, V3) {
+fn get_size_and_origin(axes: &Vec<Axis>) -> (V3, V3) {
     let mut mins = [1000000.0;3];
     let mut maxs = [0.0;3];
     for ax in axes {
@@ -144,7 +136,7 @@ impl Proc {
             plane_axes.iter()
             .map(|ax| align(&r_mat, &ax))
             .collect();
-        let (size, origin) = get_size_and_origin(&dv, dmax, &plane_axes);
+        let (size, origin) = get_size_and_origin(&plane_axes);
         let cylinders =
             faces.iter()
             .filter_map(
