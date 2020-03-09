@@ -45,6 +45,7 @@ fn align(mat: &Mat3x3, ax: &Axis) -> Axis {
     }
 }
 
+// TODO: robustize
 fn get_size_and_origin(axes: &Vec<Axis>) -> (V3, V3) {
     let mut mins = [1000000.0;3];
     let mut maxs = [0.0;3];
@@ -68,6 +69,7 @@ fn get_size_and_origin(axes: &Vec<Axis>) -> (V3, V3) {
     (size, origin)
 }
 
+// TODO: robustize
 fn get_y_axis_and_depth(axes: &Vec<&Axis>) -> (V3, f64) {
     let mut dmax = 0.0;
     let mut dv = V3::default();
@@ -81,6 +83,9 @@ fn get_y_axis_and_depth(axes: &Vec<&Axis>) -> (V3, f64) {
     (dv, dmax)
 }
 
+// 底面のaxisは線形従属なのは2本だけ
+// 側面はそれぞれ4本ある
+// 押出方向次第ではこの仮定も成り立たない?（そんな事は無い気もする）
 fn exclude_side_planes<'a>(axes: &'a Vec<&'a Axis>) -> Vec<&'a Axis> {
     let mut cnts = vec![0; axes.len()];
     for i in 0..axes.len() {
