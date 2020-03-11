@@ -24,7 +24,7 @@ pub struct CNCConfig {
 }
 
 fn g1(buf: &mut String, cfg: &CNCConfig, x: f64, y: f64, z: f64, b: f64, a: f64) -> Result<(), Error> {
-    buf.write_fmt(format_args!("G1 X{:.3} Y{:.3} Z{:.3} A{:.3} B{:.3} F{:.3}\n",
+    buf.write_fmt(format_args!("G1X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
         x + cfg.offsets.x,
         y + cfg.offsets.y,
         z + cfg.offsets.z,
@@ -34,7 +34,7 @@ fn g1(buf: &mut String, cfg: &CNCConfig, x: f64, y: f64, z: f64, b: f64, a: f64)
 }
 
 fn g0(buf: &mut String, cfg: &CNCConfig, x: f64, y: f64, z: f64, b: f64, a: f64) -> Result<(), Error> {
-    buf.write_fmt(format_args!("G0 X{:.3} Y{:.3} Z{:.3} A{:.3} B{:.3}\n",
+    buf.write_fmt(format_args!("G0X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}\n",
         x + cfg.offsets.x,
         y + cfg.offsets.y,
         z + cfg.offsets.z,
