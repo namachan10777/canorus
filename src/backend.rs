@@ -15,8 +15,8 @@ const ENDMILL_STEP : f64 = 0.05;
 const DRILL_OFFSET : f64 = 10.0;
 const D_PULLING : f64 = 40.0;
 
-fn g01(buf: &mut String, x: f64, y: f64, z: f64, a: f64) -> Result<(), Error> {
-    buf.write_fmt(format_args!("G01 X{:.3} Y{:.3} Z{:.3} A{:.3} F{:.3}\n",
+fn g1(buf: &mut String, x: f64, y: f64, z: f64, a: f64) -> Result<(), Error> {
+    buf.write_fmt(format_args!("G1 X{:.3} Y{:.3} Z{:.3} A{:.3} F{:.3}\n",
         x + X_OFFSET + EPS,
         y + Y_OFFSET + EPS,
         z + Z_OFFSET + EPS,
@@ -24,8 +24,8 @@ fn g01(buf: &mut String, x: f64, y: f64, z: f64, a: f64) -> Result<(), Error> {
         FEED_RATE + EPS))
 }
 
-fn g00(buf: &mut String, x: f64, y: f64, z: f64, a: f64) -> Result<(), Error> {
-    buf.write_fmt(format_args!("G00 X{:.3} Y{:.3} Z{:.3} A{:.3}\n",
+fn g0(buf: &mut String, x: f64, y: f64, z: f64, a: f64) -> Result<(), Error> {
+    buf.write_fmt(format_args!("G0 X{:.3} Y{:.3} Z{:.3} A{:.3}\n",
         x + X_OFFSET + EPS,
         y + Y_OFFSET + EPS,
         z + Z_OFFSET + EPS,
@@ -34,28 +34,28 @@ fn g00(buf: &mut String, x: f64, y: f64, z: f64, a: f64) -> Result<(), Error> {
 
 fn gen_cut(buf: &mut String, cut_pos: f64, target_r: f64) -> Result<(), Error> {
     buf.write_fmt(format_args!("; cut\n"))?;
-    g01(buf, 0.0, cut_pos, target_r + DRILL_OFFSET, 0.0)?;
-    g01(buf, 0.0, cut_pos, target_r, 0.0)?;
+    g1(buf, 0.0, cut_pos, target_r + DRILL_OFFSET, 0.0)?;
+    g1(buf, 0.0, cut_pos, target_r, 0.0)?;
     let iter_times = (target_r / ENDMILL_STEP / 2.0).ceil() as i32;
     for i in 0..iter_times {
-        g01(buf, 0.0, cut_pos, target_r - ((i * 2)      as f64) * ENDMILL_STEP, 3.15)?;
-        g01(buf, 0.0, cut_pos, target_r - ((i * 2 + 1)  as f64) * ENDMILL_STEP, 0.00)?;
+        g1(buf, 0.0, cut_pos, target_r - ((i * 2)      as f64) * ENDMILL_STEP, 3.15)?;
+        g1(buf, 0.0, cut_pos, target_r - ((i * 2 + 1)  as f64) * ENDMILL_STEP, 0.00)?;
     }
-    g01(buf, 0.0, cut_pos, DRILL_PULLING, 0.00)?;
+    g1(buf, 0.0, cut_pos, DRILL_PULLING, 0.00)?;
     Ok(())
 }
 
 fn gen_drill(buf: &mut String, slide: f64, d: f64, theta: f64) -> Result<(), Error> {
     buf.write_fmt(format_args!("; drill\n"))?;
-    g01(buf, slide, d, DRILL_PULLING, theta)?;
-    g01(buf, slide, d, 0.0,           theta)?;
-    g01(buf, slide, d, DRILL_PULLING, theta)?;
+    g1(buf, slide, d, DRILL_PULLING, theta)?;
+    g1(buf, slide, d, 0.0,           theta)?;
+    g1(buf, slide, d, DRILL_PULLING, theta)?;
     Ok(())
 }
 
 fn gen_reset(buf: &mut String, d: f64) -> Result<(), Error> {
     buf.write_fmt(format_args!("; reset\n"))?;
-    g00(buf, 0.0, d - D_PULLING, DRILL_PULLING, 0.0)?;
+    g0(buf, 0.0, d - D_PULLING, DRILL_PULLING, 0.0)?;
     buf.write_fmt(format_args!("M02\n"))?;
     Ok(())
 }
