@@ -68,7 +68,10 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
                 before = gcode;
             },
             GCode::G0(m) => {
-                match before { _ => {buf.write_fmt(format_args!("G0\n"))?;}}
+                match before {
+                    GCode::G0(_) => {},
+                    _ => {buf.write_fmt(format_args!("G0\n"))?;}
+                }
                 buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
                         m.x + cfg.offsets.x,
                         m.y + cfg.offsets.y,
@@ -80,7 +83,10 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
                 before = gcode;
             },
             GCode::G1(m) => {
-                match before { _ => {buf.write_fmt(format_args!("G0\n"))?;}}
+                match before {
+                    GCode::G1(_) => {},
+                    _ => {buf.write_fmt(format_args!("G0\n"))?;}
+                }
                 buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
                         m.x + cfg.offsets.x,
                         m.y + cfg.offsets.y,
