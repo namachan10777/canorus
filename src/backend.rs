@@ -180,23 +180,32 @@ fn gcodes_of_cut(cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Vec<GCode> {
     gcodes
 }
 
-pub fn gen_gcode(mut proc: Proc, cfg: &CNCConfig) -> Result<String, Error> {
-    proc.drills.sort_by(|x, y| if x.d > y.d { cmp::Ordering::Greater } else { cmp::Ordering::Less });
-    let mut buf = String::new();
-    let target_r = (proc.size.x().powi(2) + proc.size.y().powi(2)).sqrt();
+enum Job<'a> {
+    Drill(&'a Drill),
+    Cut,
+}
 
+pub fn gen_gcode(proc: Proc, cfg: &CNCConfig) -> Result<String, Error> {
+    let mut jobs = proc.drills.iter().map(|drill| (drill.d, Job::Drill(drill))).collect::<Vec<(f64, Job)>>();
+    if cfg.cut {
+        jobs.push((cfg.gap_endmill_and_drill - cfg.endmill.r, Job::Cut));
+        jobs.push((cfg.gap_endmill_and_drill + cfg.endmill.r + proc.size.z(), Job::Cut));
+    }
+    jobs.sort_by(|x, y| if x.0 > y.0 { cmp::Ordering::Greater } else { cmp::Ordering::Less });
+    let target_r = ((proc.size.x() / 2.0).powi(2) + (proc.size.y() / 2.0).powi(2)).sqrt();
     let mut gcodes = Vec::new();
     gcodes.push(GCode::Comment("init".to_owned()));
     gcodes.push(GCode::M02);
-
-    for drill in proc.drills {
-        gcodes.append(&mut gcodes_of_drill(&cfg, &drill, target_r));
-    }
-    if cfg.cut {
-        gcodes.append(&mut gcodes_of_cut(cfg, cfg.gap_endmill_and_drill + cfg.endmill.r, target_r));
-        gcodes.append(&mut gcodes_of_cut(cfg, proc.size.z() + cfg.gap_endmill_and_drill + cfg.endmill.r, target_r));
+    for job in jobs {
+        match job {
+            (_, Job::Drill(drill)) =>
+                gcodes.append(&mut gcodes_of_drill(&cfg, &drill, target_r)),
+            (p, Job::Cut) =>
+                gcodes.append(&mut gcodes_of_cut(cfg, p, target_r)),
+        }
     }
     gcodes.push(GCode::M03);
+    let mut buf = String::new();
     output(&mut buf, cfg, &gcodes)?;
     Ok(buf)
 }
