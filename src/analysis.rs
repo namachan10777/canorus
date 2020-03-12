@@ -9,14 +9,8 @@ pub struct Drill {
 }
 
 #[derive(Debug)]
-pub struct Cutter {
-    pub y: f64,
-}
-
-#[derive(Debug)]
 pub struct Proc {
     pub drills: Vec<Drill>,
-    pub cutter: Cutter,
     pub center: V3,
     pub size: V3,
 }
@@ -69,24 +63,10 @@ fn get_size_and_origin(axes: &Vec<Axis>) -> (V3, V3) {
     (size, origin)
 }
 
-// TODO: robustize
-fn get_y_axis_and_depth(axes: &Vec<&Axis>) -> (V3, f64) {
-    let mut dmax = 0.0;
-    let mut dv = V3::default();
-    for ax in axes {
-        let d = ax.direction.dot(&ax.p);
-        if d > dmax {
-            dmax = d;
-            dv = ax.direction.clone();
-        }
-    }
-    (dv, dmax)
-}
-
 // 底面のaxisは線形従属なのは2本だけ
 // 側面はそれぞれ4本ある
 // 押出方向次第ではこの仮定も成り立たない?（そんな事は無い気もする）
-fn exclude_side_planes<'a>(axes: &'a Vec<&'a Axis>) -> Vec<&'a Axis> {
+fn get_y_axis <'a>(axes: &'a Vec<&'a Axis>) -> V3 {
     let mut cnts = vec![0; axes.len()];
     for i in 0..axes.len() {
         for j in 0..axes.len() {
@@ -95,13 +75,13 @@ fn exclude_side_planes<'a>(axes: &'a Vec<&'a Axis>) -> Vec<&'a Axis> {
             }
         }
     }
-    let mut r = Vec::new();
+    let mut floor_axes = Vec::new();
     for i in 0..axes.len() {
         if cnts[i] <= 2 {
-            r.push(axes[i])
+            floor_axes.push(axes[i])
         }
     }
-    r
+    floor_axes[0].direction.clone()
 }
 
 fn cylinders_to_drills(orig: &V3, cylinders: &Vec<(f64, Axis)>) -> Vec<Drill> {
@@ -135,8 +115,8 @@ impl Proc {
                     FaceElement::Cylinder(_, _) => None
                 })
             .collect();
-        let (dv, dmax) = get_y_axis_and_depth(&exclude_side_planes(&plane_axes));
-        let r_mat = get_align_mat(&dv);
+        let y_axis = get_y_axis(&plane_axes);
+        let r_mat = get_align_mat(&y_axis);
         let plane_axes =
             plane_axes.iter()
             .map(|ax| align(&r_mat, &ax))
@@ -153,9 +133,6 @@ impl Proc {
         Proc {
             size: size,
             center: origin.clone(),
-            cutter: Cutter {
-                y: dmax,
-            },
             drills: cylinders_to_drills(&origin, &cylinders),
         }
     }
