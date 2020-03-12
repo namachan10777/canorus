@@ -1,7 +1,6 @@
 use super::analysis::{Proc, Drill};
 use std::cmp;
 use std::fmt::{Write, Error};
-use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 struct AxisOffsetsConfig {
@@ -136,7 +135,7 @@ fn gcodes_of_cut(cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Vec<GCode> {
     let mut gcodes = Vec::new();
     let drill_waiting = target_r + cfg.drill.offset;
     let iter_times = (target_r / cfg.endmill.step / 2.0).ceil() as i32;
-    gcodes.push(GCode::G1(Move {
+    gcodes.push(GCode::G0(Move {
         x: cut_pos,
         y: 0.0,
         z: drill_waiting,
