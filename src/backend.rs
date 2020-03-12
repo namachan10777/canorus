@@ -1,4 +1,4 @@
-use super::analysis::Proc;
+use super::analysis::{Proc, Drill};
 use std::cmp;
 use std::fmt::{Write, Error};
 use serde::{Deserialize, Serialize};
@@ -19,69 +19,165 @@ pub struct CNCConfig {
     feed_rate: f64,
     offsets: Offsets,
     endmill_step: f64,
+    endmill_r: f64,
     drill_offset: f64,
     y_pulling : f64,
 }
 
-fn g_pos(buf: &mut String, cfg: &CNCConfig, x: f64, y: f64, z: f64, b: f64, a: f64) -> Result<(), Error> {
-    buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
-        x + cfg.offsets.x,
-        y + cfg.offsets.y,
-        z + cfg.offsets.z,
-        a + cfg.offsets.a,
-        b + cfg.offsets.b,
-        cfg.feed_rate))
+pub struct Move {
+    x: f64,
+    y: f64,
+    z: f64,
+    a: f64,
+    b: f64,
+    feed_rate: f64,
 }
 
-fn gen_cut(buf: &mut String, cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Result<(), Error> {
-    buf.write_fmt(format_args!("; cut\n"))?;
-    buf.write_fmt(format_args!("G1\n"))?;
-    let drill_waiting = target_r + cfg.drill_offset;
-    g_pos(buf, cfg, cut_pos, 0.0, drill_waiting, target_r + cfg.drill_offset + target_r, 0.0)?;
-    let iter_times = (target_r / cfg.endmill_step / 2.0).ceil() as i32;
-    for i in 0..iter_times {
-        g_pos(buf, cfg, cut_pos, 0.0, drill_waiting, target_r - ((i * 2)      as f64) * cfg.endmill_step, 3.15)?;
-        g_pos(buf, cfg, cut_pos, 0.0, drill_waiting, target_r - ((i * 2 + 1)  as f64) * cfg.endmill_step, 0.00)?;
+pub enum GCode {
+    Comment(String),
+    G0(Move),
+    G1(Move),
+    M02,
+    M03
+}
+
+fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Error> {
+    let mut before = &GCode::M02;
+    for gcode in gcodes {
+        match gcode {
+            GCode::Comment(comment) => {
+                buf.write_fmt(format_args!(";{}\n", comment))?;
+            },
+            GCode::M02 => {
+                buf.write_fmt(format_args!("M02\n"))?;
+                before = gcode;
+            },
+            GCode::M03 => {
+                buf.write_fmt(format_args!("M03\n"))?;
+                before = gcode;
+            },
+            GCode::G0(m) => {
+                match before { _ => {buf.write_fmt(format_args!("G0\n"))?;}}
+                buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
+                        m.x + cfg.offsets.x,
+                        m.y + cfg.offsets.y,
+                        m.z + cfg.offsets.z,
+                        m.a + cfg.offsets.a,
+                        m.b + cfg.offsets.b,
+                        m.feed_rate
+                ))?;
+                before = gcode;
+            },
+            GCode::G1(m) => {
+                match before { _ => {buf.write_fmt(format_args!("G0\n"))?;}}
+                buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
+                        m.x + cfg.offsets.x,
+                        m.y + cfg.offsets.y,
+                        m.z + cfg.offsets.z,
+                        m.a + cfg.offsets.a,
+                        m.b + cfg.offsets.b,
+                        m.feed_rate
+                ))?;
+                before = gcode;
+            },
+        }
     }
-    g_pos(buf, cfg, 0.0, cut_pos, drill_waiting, drill_waiting, 0.00)?;
     Ok(())
 }
 
-fn gen_drill(buf: &mut String, cfg: &CNCConfig, slide: f64, d: f64, theta: f64, target_r: f64) -> Result<(), Error> {
-    buf.write_fmt(format_args!("; drill\n"))?;
-    buf.write_fmt(format_args!("G1\n"))?;
+fn gcodes_of_drill(cfg: &CNCConfig, drill: &Drill, target_r: f64) -> Vec<GCode> {
+    vec![
+        GCode::G1(Move {
+            x: drill.d,
+            y: drill.slide,
+            z: target_r + cfg.drill_offset,
+            a: drill.theta * 360.0 / std::f64::consts::PI,
+            b: target_r + cfg.drill_offset,
+            feed_rate: cfg.feed_rate,
+        }),
+        GCode::G1(Move {
+            x: drill.d,
+            y: drill.slide,
+            z: 0.0,
+            a: drill.theta * 360.0 / std::f64::consts::PI,
+            b: target_r + cfg.drill_offset,
+            feed_rate: cfg.feed_rate,
+        }),
+        GCode::G1(Move {
+            x: drill.d,
+            y: drill.slide,
+            z: target_r + cfg.drill_offset,
+            a: drill.theta * 360.0 / std::f64::consts::PI,
+            b: target_r + cfg.drill_offset,
+            feed_rate: cfg.feed_rate,
+        })
+    ]
+}
+
+fn gcodes_of_cut(cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Vec<GCode> {
+    let mut gcodes = Vec::new();
     let drill_waiting = target_r + cfg.drill_offset;
-    g_pos(buf, cfg, d, slide, drill_waiting, drill_waiting, theta)?;
-    g_pos(buf, cfg, d, slide,           0.0, drill_waiting, theta)?;
-    g_pos(buf, cfg, d, slide, drill_waiting, drill_waiting, theta)?;
-    Ok(())
-}
-
-fn gen_reset(buf: &mut String, cfg: &CNCConfig, d: f64, target_r: f64) -> Result<(), Error> {
-    buf.write_fmt(format_args!("; reset\n"))?;
-    buf.write_fmt(format_args!("G1\n"))?;
-    let drill_waiting = target_r + cfg.drill_offset;
-    g_pos(buf, cfg, 0.0, d - cfg.y_pulling, drill_waiting, drill_waiting, 0.0)?;
-    buf.write_fmt(format_args!("M02\n"))?;
-    Ok(())
-}
-
-fn gen_init(buf: &mut String, cfg: &CNCConfig) -> Result<(), Error> {
-    buf.write_fmt(format_args!("; init\n"))?;
-    buf.write_fmt(format_args!("M03\n"))?;
-    Ok(())
+    let iter_times = (target_r / cfg.endmill_step / 2.0).ceil() as i32;
+    gcodes.push(GCode::G1(Move {
+        x: cut_pos,
+        y: 0.0,
+        z: drill_waiting,
+        b: drill_waiting,
+        a: 0.0,
+        feed_rate: cfg.feed_rate,
+    }));
+    gcodes.push(GCode::G1(Move {
+        x: cut_pos,
+        y: 0.0,
+        z: drill_waiting,
+        b: target_r,
+        a: 0.0,
+        feed_rate: cfg.feed_rate,
+    }));
+    for i in 0..iter_times {
+        gcodes.push(GCode::G1(Move {
+            x: cut_pos,
+            y: 0.0,
+            z: drill_waiting,
+            b: target_r - ((i * 2 + 1) as f64) * cfg.endmill_step,
+            a: 360.0,
+            feed_rate: cfg.feed_rate,
+        }));
+        gcodes.push(GCode::G1(Move {
+            x: cut_pos,
+            y: 0.0,
+            z: drill_waiting,
+            b: target_r - ((i * 2 + 2) as f64) * cfg.endmill_step,
+            a: 0.0,
+            feed_rate: cfg.feed_rate,
+        }));
+    }
+    gcodes.push(GCode::G1(Move {
+        x: cut_pos,
+        y: 0.0,
+        z: drill_waiting,
+        b: drill_waiting,
+        a: 0.0,
+        feed_rate: cfg.feed_rate,
+    }));
+    gcodes
 }
 
 pub fn gen_gcode(mut proc: Proc, cfg: &CNCConfig) -> Result<String, Error> {
     proc.drills.sort_by(|x, y| if x.d > y.d { cmp::Ordering::Greater } else { cmp::Ordering::Less });
     let mut buf = String::new();
     let target_r = (proc.size.x().powi(2) + proc.size.y().powi(2)).sqrt();
-    gen_init(&mut buf, cfg)?;
+
+    let mut gcodes = Vec::new();
+    gcodes.push(GCode::Comment("init".to_owned()));
+    gcodes.push(GCode::M02);
+
     for drill in proc.drills {
-        gen_drill(&mut buf, cfg, drill.slide, drill.d, drill.theta, target_r)?;
+        gcodes.append(&mut gcodes_of_drill(&cfg, &drill, target_r));
     }
-    //gen_cut(&mut buf, GAP_ENDMILL_AND_DRILL + ENDMILL_R, target_r)?;
-    //gen_cut(&mut buf, proc.size.z() + GAP_ENDMILL_AND_DRILL + ENDMILL_R, target_r)?;
-    gen_reset(&mut buf, cfg, proc.size.z(), target_r)?;
+    gcodes.append(&mut gcodes_of_cut(cfg, cfg.gap_endmill_and_drill + cfg.endmill_r, target_r));
+    gcodes.append(&mut gcodes_of_cut(cfg, proc.size.z() + cfg.gap_endmill_and_drill + cfg.endmill_r, target_r));
+    gcodes.push(GCode::M03);
+    output(&mut buf, cfg, &gcodes)?;
     Ok(buf)
 }

@@ -9,6 +9,7 @@
 		"a": 0.0,
 		"b": 0.0
 	},
+	"endmill_r": 3.0,
 	"endmill_step": 0.02,
 	"drill_offset": 10.0,
 	"y_pulling": 10.0
