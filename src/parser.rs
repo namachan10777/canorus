@@ -41,6 +41,7 @@ pub struct AdvancedFace {
 pub enum ParseError {
     HeaderParseError(String),
     DataParseError(String),
+    PreprocessError(String),
 }
 
 fn parse_header(parsed_header: Vec<preprocess::Header>) -> Result<Header, ParseError> {
@@ -372,20 +373,33 @@ fn parse_advanced_face(map: &DataDB, id: u64) -> Result<AdvancedFace, ParseError
     }
 }
 
-fn parse_data(parsed_data: Vec<preprocess::Data>) -> Vec<AdvancedFace> {
+fn parse_data(parsed_data: Vec<preprocess::Data>) -> Result<Vec<AdvancedFace>, ParseError> {
     let map = make_db(parsed_data);
     // ad-hoc
-    let root_id = find_mechanical_design_geometric_presentation_representation_id(&map).unwrap();
-    let styled_item_ids = get_styled_item_ids(&map, root_id).unwrap();
-    let manifold_solid_brep_id = get_manifold_solid_brep_id(&map, styled_item_ids[0]).unwrap();
-    let closed_shell_id = get_closed_shell_id(&map, manifold_solid_brep_id).unwrap();
-    let advanced_face_ids = get_advanced_face_ids(&map, closed_shell_id).unwrap();
-    advanced_face_ids.iter().map(|face_id| parse_advanced_face(&map, *face_id).unwrap()).collect()
+    let root_id = find_mechanical_design_geometric_presentation_representation_id(&map)?;
+    let styled_item_ids = get_styled_item_ids(&map, root_id)?;
+    let manifold_solid_brep_id = get_manifold_solid_brep_id(&map, styled_item_ids[0])?;
+    let closed_shell_id = get_closed_shell_id(&map, manifold_solid_brep_id)?;
+    let advanced_face_ids = get_advanced_face_ids(&map, closed_shell_id)?;
+    advanced_face_ids.iter().map(|face_id| parse_advanced_face(&map, *face_id)).collect()
 }
 
 pub fn parse(s : &str) -> Result<(Header, Vec<AdvancedFace>), ParseError> {
-    let parsed = preprocess::parse(s).unwrap();
-    Ok((parse_header(parsed.header)?, parse_data(parsed.data)))
+    let parsed = preprocess::parse(s).map_err(
+        |e| match e {
+            preprocess::PreprocessError::Fail(info) => {
+                match info {
+                    preprocess::PreprocessErrorInfo::LineCol((l, c)) =>
+                        ParseError::PreprocessError(format!("irregular syntax at {}:{}", l, c)),
+                    preprocess::PreprocessErrorInfo::Span((l1, c1), (l2, c2)) =>
+                        ParseError::PreprocessError(format!("irregular syntax in {}:{} -- {}:{}", l1, c1, l2, c2))
+                }
+            },
+            preprocess::PreprocessError::InternalError => {
+                ParseError::PreprocessError(format!("internal parser error"))
+            }
+        })?;
+    Ok((parse_header(parsed.header)?, parse_data(parsed.data)?))
 }
 
 #[cfg(test)]
