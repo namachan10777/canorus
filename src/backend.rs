@@ -33,6 +33,7 @@ pub struct CNCConfig {
     offsets: AxisOffsetsConfig,
     endmill: EndmillConfig,
     drill: DrillConfig,
+    cut: bool,
 }
 
 pub struct Move {
@@ -192,8 +193,10 @@ pub fn gen_gcode(mut proc: Proc, cfg: &CNCConfig) -> Result<String, Error> {
     for drill in proc.drills {
         gcodes.append(&mut gcodes_of_drill(&cfg, &drill, target_r));
     }
-    gcodes.append(&mut gcodes_of_cut(cfg, cfg.gap_endmill_and_drill + cfg.endmill.r, target_r));
-    gcodes.append(&mut gcodes_of_cut(cfg, proc.size.z() + cfg.gap_endmill_and_drill + cfg.endmill.r, target_r));
+    if cfg.cut {
+        gcodes.append(&mut gcodes_of_cut(cfg, cfg.gap_endmill_and_drill + cfg.endmill.r, target_r));
+        gcodes.append(&mut gcodes_of_cut(cfg, proc.size.z() + cfg.gap_endmill_and_drill + cfg.endmill.r, target_r));
+    }
     gcodes.push(GCode::M03);
     output(&mut buf, cfg, &gcodes)?;
     Ok(buf)
