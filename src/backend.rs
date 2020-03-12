@@ -23,8 +23,8 @@ pub struct CNCConfig {
     y_pulling : f64,
 }
 
-fn g1(buf: &mut String, cfg: &CNCConfig, x: f64, y: f64, z: f64, b: f64, a: f64) -> Result<(), Error> {
-    buf.write_fmt(format_args!("G1X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
+fn g_pos(buf: &mut String, cfg: &CNCConfig, x: f64, y: f64, z: f64, b: f64, a: f64) -> Result<(), Error> {
+    buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
         x + cfg.offsets.x,
         y + cfg.offsets.y,
         z + cfg.offsets.z,
@@ -33,41 +33,35 @@ fn g1(buf: &mut String, cfg: &CNCConfig, x: f64, y: f64, z: f64, b: f64, a: f64)
         cfg.feed_rate))
 }
 
-fn g0(buf: &mut String, cfg: &CNCConfig, x: f64, y: f64, z: f64, b: f64, a: f64) -> Result<(), Error> {
-    buf.write_fmt(format_args!("G0X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}\n",
-        x + cfg.offsets.x,
-        y + cfg.offsets.y,
-        z + cfg.offsets.z,
-        a + cfg.offsets.a,
-        b + cfg.offsets.b))
-}
-
 fn gen_cut(buf: &mut String, cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Result<(), Error> {
     buf.write_fmt(format_args!("; cut\n"))?;
+    buf.write_fmt(format_args!("G1\n"))?;
     let drill_waiting = target_r + cfg.drill_offset;
-    g1(buf, cfg, cut_pos, 0.0, drill_waiting, target_r + cfg.drill_offset + target_r, 0.0)?;
+    g_pos(buf, cfg, cut_pos, 0.0, drill_waiting, target_r + cfg.drill_offset + target_r, 0.0)?;
     let iter_times = (target_r / cfg.endmill_step / 2.0).ceil() as i32;
     for i in 0..iter_times {
-        g1(buf, cfg, cut_pos, 0.0, drill_waiting, target_r - ((i * 2)      as f64) * cfg.endmill_step, 3.15)?;
-        g1(buf, cfg, cut_pos, 0.0, drill_waiting, target_r - ((i * 2 + 1)  as f64) * cfg.endmill_step, 0.00)?;
+        g_pos(buf, cfg, cut_pos, 0.0, drill_waiting, target_r - ((i * 2)      as f64) * cfg.endmill_step, 3.15)?;
+        g_pos(buf, cfg, cut_pos, 0.0, drill_waiting, target_r - ((i * 2 + 1)  as f64) * cfg.endmill_step, 0.00)?;
     }
-    g1(buf, cfg, 0.0, cut_pos, drill_waiting, drill_waiting, 0.00)?;
+    g_pos(buf, cfg, 0.0, cut_pos, drill_waiting, drill_waiting, 0.00)?;
     Ok(())
 }
 
 fn gen_drill(buf: &mut String, cfg: &CNCConfig, slide: f64, d: f64, theta: f64, target_r: f64) -> Result<(), Error> {
     buf.write_fmt(format_args!("; drill\n"))?;
+    buf.write_fmt(format_args!("G1\n"))?;
     let drill_waiting = target_r + cfg.drill_offset;
-    g1(buf, cfg, d, slide, drill_waiting, drill_waiting, theta)?;
-    g1(buf, cfg, d, slide,           0.0, drill_waiting, theta)?;
-    g1(buf, cfg, d, slide, drill_waiting, drill_waiting, theta)?;
+    g_pos(buf, cfg, d, slide, drill_waiting, drill_waiting, theta)?;
+    g_pos(buf, cfg, d, slide,           0.0, drill_waiting, theta)?;
+    g_pos(buf, cfg, d, slide, drill_waiting, drill_waiting, theta)?;
     Ok(())
 }
 
 fn gen_reset(buf: &mut String, cfg: &CNCConfig, d: f64, target_r: f64) -> Result<(), Error> {
     buf.write_fmt(format_args!("; reset\n"))?;
+    buf.write_fmt(format_args!("G1\n"))?;
     let drill_waiting = target_r + cfg.drill_offset;
-    g0(buf, cfg, 0.0, d - cfg.y_pulling, drill_waiting, drill_waiting, 0.0)?;
+    g_pos(buf, cfg, 0.0, d - cfg.y_pulling, drill_waiting, drill_waiting, 0.0)?;
     buf.write_fmt(format_args!("M02\n"))?;
     Ok(())
 }
