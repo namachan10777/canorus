@@ -4,7 +4,7 @@ use std::fmt::{Write, Error};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-struct Offsets {
+struct AxisOffsetsConfig {
     x: f64,
     y: f64,
     z: f64,
@@ -13,15 +13,26 @@ struct Offsets {
 }
 
 #[derive(Serialize, Deserialize)]
+struct EndmillConfig {
+    r: f64,
+    step: f64,
+    offset: f64,
+    feed_rate: f64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct DrillConfig {
+    offset: f64,
+    feed_rate: f64,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct CNCConfig {
-    drill_pulling: f64,
     gap_endmill_and_drill: f64,
     feed_rate: f64,
-    offsets: Offsets,
-    endmill_step: f64,
-    endmill_r: f64,
-    drill_offset: f64,
-    y_pulling : f64,
+    offsets: AxisOffsetsConfig,
+    endmill: EndmillConfig,
+    drill: DrillConfig,
 }
 
 pub struct Move {
@@ -90,9 +101,9 @@ fn gcodes_of_drill(cfg: &CNCConfig, drill: &Drill, target_r: f64) -> Vec<GCode> 
         GCode::G1(Move {
             x: drill.d,
             y: drill.slide,
-            z: target_r + cfg.drill_offset,
+            z: target_r + cfg.drill.offset,
             a: drill.theta * 360.0 / std::f64::consts::PI,
-            b: target_r + cfg.drill_offset,
+            b: target_r + cfg.endmill.offset,
             feed_rate: cfg.feed_rate,
         }),
         GCode::G1(Move {
@@ -100,15 +111,15 @@ fn gcodes_of_drill(cfg: &CNCConfig, drill: &Drill, target_r: f64) -> Vec<GCode> 
             y: drill.slide,
             z: 0.0,
             a: drill.theta * 360.0 / std::f64::consts::PI,
-            b: target_r + cfg.drill_offset,
-            feed_rate: cfg.feed_rate,
+            b: target_r + cfg.endmill.offset,
+            feed_rate: cfg.drill.feed_rate,
         }),
         GCode::G1(Move {
             x: drill.d,
             y: drill.slide,
-            z: target_r + cfg.drill_offset,
+            z: target_r + cfg.drill.offset,
             a: drill.theta * 360.0 / std::f64::consts::PI,
-            b: target_r + cfg.drill_offset,
+            b: target_r + cfg.endmill.offset,
             feed_rate: cfg.feed_rate,
         })
     ]
@@ -116,8 +127,8 @@ fn gcodes_of_drill(cfg: &CNCConfig, drill: &Drill, target_r: f64) -> Vec<GCode> 
 
 fn gcodes_of_cut(cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Vec<GCode> {
     let mut gcodes = Vec::new();
-    let drill_waiting = target_r + cfg.drill_offset;
-    let iter_times = (target_r / cfg.endmill_step / 2.0).ceil() as i32;
+    let drill_waiting = target_r + cfg.drill.offset;
+    let iter_times = (target_r / cfg.endmill.step / 2.0).ceil() as i32;
     gcodes.push(GCode::G1(Move {
         x: cut_pos,
         y: 0.0,
@@ -139,17 +150,17 @@ fn gcodes_of_cut(cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Vec<GCode> {
             x: cut_pos,
             y: 0.0,
             z: drill_waiting,
-            b: target_r - ((i * 2 + 1) as f64) * cfg.endmill_step,
+            b: target_r - ((i * 2 + 1) as f64) * cfg.endmill.step,
             a: 360.0,
-            feed_rate: cfg.feed_rate,
+            feed_rate: cfg.endmill.feed_rate,
         }));
         gcodes.push(GCode::G1(Move {
             x: cut_pos,
             y: 0.0,
             z: drill_waiting,
-            b: target_r - ((i * 2 + 2) as f64) * cfg.endmill_step,
+            b: target_r - ((i * 2 + 2) as f64) * cfg.endmill.step,
             a: 0.0,
-            feed_rate: cfg.feed_rate,
+            feed_rate: cfg.endmill.feed_rate,
         }));
     }
     gcodes.push(GCode::G1(Move {
@@ -175,8 +186,8 @@ pub fn gen_gcode(mut proc: Proc, cfg: &CNCConfig) -> Result<String, Error> {
     for drill in proc.drills {
         gcodes.append(&mut gcodes_of_drill(&cfg, &drill, target_r));
     }
-    gcodes.append(&mut gcodes_of_cut(cfg, cfg.gap_endmill_and_drill + cfg.endmill_r, target_r));
-    gcodes.append(&mut gcodes_of_cut(cfg, proc.size.z() + cfg.gap_endmill_and_drill + cfg.endmill_r, target_r));
+    gcodes.append(&mut gcodes_of_cut(cfg, cfg.gap_endmill_and_drill + cfg.endmill.r, target_r));
+    gcodes.append(&mut gcodes_of_cut(cfg, proc.size.z() + cfg.gap_endmill_and_drill + cfg.endmill.r, target_r));
     gcodes.push(GCode::M03);
     output(&mut buf, cfg, &gcodes)?;
     Ok(buf)

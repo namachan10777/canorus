@@ -1,5 +1,4 @@
 {
-	"drill_pulling": 0.0,
 	"gap_endmill_and_drill": 153.0,
 	"feed_rate": 100.0,
 	"offsets": {
@@ -9,8 +8,14 @@
 		"a": 0.0,
 		"b": 0.0
 	},
-	"endmill_r": 3.0,
-	"endmill_step": 0.02,
-	"drill_offset": 10.0,
-	"y_pulling": 10.0
+	"endmill": {
+		"step": 0.02,
+		"offset": 10.0,
+		"r": 3.0,
+		"feed_rate": 20.0
+	},
+	"drill": {
+		"offset": 10.0,
+		"feed_rate": 50.0
+	}
 }
