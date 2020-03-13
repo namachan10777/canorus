@@ -35,34 +35,24 @@ pub struct CNCConfig {
     cut: bool,
 }
 
-pub struct MoveG0 {
+pub struct Move {
     x: f64,
     y: f64,
     z: f64,
     a: f64,
     b: f64,
-}
-
-pub struct MoveG1 {
-    x: f64,
-    y: f64,
-    z: f64,
-    a: f64,
-    b: f64,
-    feed_rate: f64,
 }
 
 pub enum GCode {
     Comment(String),
-    G0(MoveG0),
-    G1(MoveG1),
+    G0(Move),
+    G1(Move, f64),
     M02,
     M03
 }
 
 fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Error> {
     let mut before = &GCode::M02;
-    let mut feed_rate = 0.0;
     for gcode in gcodes {
         match gcode {
             GCode::Comment(comment) => {
@@ -78,7 +68,8 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
             },
             GCode::G0(m) => {
                 match before {
-                    GCode::G0(_) => {},
+                    GCode::G0(_) => {
+                    },
                     _ => {buf.write_fmt(format_args!("G0 "))?;}
                 }
                 buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}\n",
@@ -90,12 +81,11 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
                 ))?;
                 before = gcode;
             },
-            GCode::G1(m) => {
+            GCode::G1(m, frate_now) => {
                 match before {
-                    GCode::G1(_) => {
-                        if m.feed_rate != feed_rate {
+                    GCode::G1(_, frate_before) => {
+                        if frate_now != frate_before {
                             buf.write_fmt(format_args!("G1 "))?;
-                            feed_rate = m.feed_rate;
                         }
                     },
                     _ => {
@@ -108,7 +98,7 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
                         m.z + cfg.offsets.z,
                         m.a + cfg.offsets.a,
                         m.b + cfg.offsets.b,
-                        m.feed_rate
+                        frate_now
                 ))?;
                 before = gcode;
             },
@@ -119,22 +109,23 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
 
 fn gcodes_of_drill(cfg: &CNCConfig, drill: &Drill, target_r: f64) -> Vec<GCode> {
     vec![
-        GCode::G0(MoveG0 {
+        GCode::G0(Move {
             x: drill.d,
             y: drill.slide,
             z: target_r + cfg.drill.offset,
             a: drill.theta * 180.0 / std::f64::consts::PI,
             b: target_r + cfg.endmill.offset,
         }),
-        GCode::G1(MoveG1 {
+        GCode::G1(Move {
             x: drill.d,
             y: drill.slide,
             z: 0.0,
             a: drill.theta * 180.0 / std::f64::consts::PI,
             b: target_r + cfg.endmill.offset,
-            feed_rate: cfg.drill.feed_rate,
-        }),
-        GCode::G0(MoveG0 {
+        },
+            cfg.drill.feed_rate,
+        ),
+        GCode::G0(Move {
             x: drill.d,
             y: drill.slide,
             z: target_r + cfg.drill.offset,
@@ -148,47 +139,51 @@ fn gcodes_of_cut(cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Vec<GCode> {
     let mut gcodes = Vec::new();
     let drill_waiting = target_r + cfg.drill.offset;
     let iter_times = (target_r / cfg.endmill.step / 2.0).ceil() as i32;
-    gcodes.push(GCode::G0(MoveG0 {
+    gcodes.push(GCode::G0(Move {
         x: cut_pos,
         y: 0.0,
         z: drill_waiting,
         b: drill_waiting,
         a: 0.0,
     }));
-    gcodes.push(GCode::G1(MoveG1 {
+    gcodes.push(GCode::G1(Move {
         x: cut_pos,
         y: 0.0,
         z: drill_waiting,
         b: target_r,
         a: 0.0,
-        feed_rate: cfg.feed_rate,
-    }));
+    },
+        cfg.feed_rate,
+    ));
     for i in 0..iter_times {
-        gcodes.push(GCode::G1(MoveG1 {
+        gcodes.push(GCode::G1(Move {
             x: cut_pos,
             y: 0.0,
             z: drill_waiting,
             b: target_r - ((i * 2 + 1) as f64) * cfg.endmill.step,
             a: 360.0,
-            feed_rate: cfg.endmill.feed_rate,
-        }));
-        gcodes.push(GCode::G1(MoveG1 {
+        },
+            cfg.endmill.feed_rate,
+        ));
+        gcodes.push(GCode::G1(Move {
             x: cut_pos,
             y: 0.0,
             z: drill_waiting,
             b: target_r - ((i * 2 + 2) as f64) * cfg.endmill.step,
             a: 0.0,
-            feed_rate: cfg.endmill.feed_rate,
-        }));
+        },
+            cfg.endmill.feed_rate,
+        ));
     }
-    gcodes.push(GCode::G1(MoveG1 {
+    gcodes.push(GCode::G1(Move {
         x: cut_pos,
         y: 0.0,
         z: drill_waiting,
         b: drill_waiting,
         a: 0.0,
-        feed_rate: cfg.feed_rate,
-    }));
+    },
+        cfg.feed_rate,
+    ));
     gcodes
 }
 
