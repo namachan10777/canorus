@@ -1,6 +1,6 @@
 {
 	"gap_endmill_and_drill": 153.0,
-	"feed_rate": 300.0,
+	"feed_rate": 1000.0,
 	"offsets": {
 		"x": 0.0,
 		"y": 0.0,
@@ -9,14 +9,14 @@
 		"b": 0.0
 	},
 	"endmill": {
-		"step": 0.02,
+		"step": 0.05,
 		"offset": 5.0,
 		"r": 3.0,
-		"feed_rate": 5.0
+		"feed_rate": 200.0
 	},
 	"drill": {
 		"offset": 5.0,
-		"feed_rate": 20.0
+		"feed_rate": 200.0
 	},
 	"cut": true
 }
