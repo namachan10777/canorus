@@ -35,7 +35,15 @@ pub struct CNCConfig {
     cut: bool,
 }
 
-pub struct Move {
+pub struct MoveG0 {
+    x: f64,
+    y: f64,
+    z: f64,
+    a: f64,
+    b: f64,
+}
+
+pub struct MoveG1 {
     x: f64,
     y: f64,
     z: f64,
@@ -46,14 +54,15 @@ pub struct Move {
 
 pub enum GCode {
     Comment(String),
-    G0(Move),
-    G1(Move),
+    G0(MoveG0),
+    G1(MoveG1),
     M02,
     M03
 }
 
 fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Error> {
     let mut before = &GCode::M02;
+    let mut feed_rate = 0.0;
     for gcode in gcodes {
         match gcode {
             GCode::Comment(comment) => {
@@ -70,22 +79,28 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
             GCode::G0(m) => {
                 match before {
                     GCode::G0(_) => {},
-                    _ => {buf.write_fmt(format_args!("G0\n"))?;}
+                    _ => {buf.write_fmt(format_args!("G0 "))?;}
                 }
-                buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
+                buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}\n",
                         m.x + cfg.offsets.x,
                         m.y + cfg.offsets.y,
                         m.z + cfg.offsets.z,
                         m.a + cfg.offsets.a,
                         m.b + cfg.offsets.b,
-                        m.feed_rate
                 ))?;
                 before = gcode;
             },
             GCode::G1(m) => {
                 match before {
-                    GCode::G1(_) => {},
-                    _ => {buf.write_fmt(format_args!("G0\n"))?;}
+                    GCode::G1(_) => {
+                        if m.feed_rate != feed_rate {
+                            buf.write_fmt(format_args!("G1 "))?;
+                            feed_rate = m.feed_rate;
+                        }
+                    },
+                    _ => {
+                        buf.write_fmt(format_args!("G1 "))?;
+                    }
                 }
                 buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
                         m.x + cfg.offsets.x,
@@ -104,15 +119,14 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
 
 fn gcodes_of_drill(cfg: &CNCConfig, drill: &Drill, target_r: f64) -> Vec<GCode> {
     vec![
-        GCode::G1(Move {
+        GCode::G0(MoveG0 {
             x: drill.d,
             y: drill.slide,
             z: target_r + cfg.drill.offset,
             a: drill.theta * 180.0 / std::f64::consts::PI,
             b: target_r + cfg.endmill.offset,
-            feed_rate: cfg.feed_rate,
         }),
-        GCode::G1(Move {
+        GCode::G1(MoveG1 {
             x: drill.d,
             y: drill.slide,
             z: 0.0,
@@ -120,13 +134,12 @@ fn gcodes_of_drill(cfg: &CNCConfig, drill: &Drill, target_r: f64) -> Vec<GCode> 
             b: target_r + cfg.endmill.offset,
             feed_rate: cfg.drill.feed_rate,
         }),
-        GCode::G1(Move {
+        GCode::G0(MoveG0 {
             x: drill.d,
             y: drill.slide,
             z: target_r + cfg.drill.offset,
             a: drill.theta * 180.0 / std::f64::consts::PI,
             b: target_r + cfg.endmill.offset,
-            feed_rate: cfg.feed_rate,
         })
     ]
 }
@@ -135,15 +148,14 @@ fn gcodes_of_cut(cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Vec<GCode> {
     let mut gcodes = Vec::new();
     let drill_waiting = target_r + cfg.drill.offset;
     let iter_times = (target_r / cfg.endmill.step / 2.0).ceil() as i32;
-    gcodes.push(GCode::G0(Move {
+    gcodes.push(GCode::G0(MoveG0 {
         x: cut_pos,
         y: 0.0,
         z: drill_waiting,
         b: drill_waiting,
         a: 0.0,
-        feed_rate: cfg.feed_rate,
     }));
-    gcodes.push(GCode::G1(Move {
+    gcodes.push(GCode::G1(MoveG1 {
         x: cut_pos,
         y: 0.0,
         z: drill_waiting,
@@ -152,7 +164,7 @@ fn gcodes_of_cut(cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Vec<GCode> {
         feed_rate: cfg.feed_rate,
     }));
     for i in 0..iter_times {
-        gcodes.push(GCode::G1(Move {
+        gcodes.push(GCode::G1(MoveG1 {
             x: cut_pos,
             y: 0.0,
             z: drill_waiting,
@@ -160,7 +172,7 @@ fn gcodes_of_cut(cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Vec<GCode> {
             a: 360.0,
             feed_rate: cfg.endmill.feed_rate,
         }));
-        gcodes.push(GCode::G1(Move {
+        gcodes.push(GCode::G1(MoveG1 {
             x: cut_pos,
             y: 0.0,
             z: drill_waiting,
@@ -169,7 +181,7 @@ fn gcodes_of_cut(cfg: &CNCConfig, cut_pos: f64, target_r: f64) -> Vec<GCode> {
             feed_rate: cfg.endmill.feed_rate,
         }));
     }
-    gcodes.push(GCode::G1(Move {
+    gcodes.push(GCode::G1(MoveG1 {
         x: cut_pos,
         y: 0.0,
         z: drill_waiting,
