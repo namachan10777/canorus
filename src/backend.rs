@@ -43,6 +43,18 @@ pub struct Move {
     b: f64,
 }
 
+impl Move {
+    fn nowhere() -> Self {
+        Move {
+            x: -1.0,
+            y: -1.0,
+            z: -1.0,
+            a: -1.0,
+            b: -1.0,
+        }
+    }
+}
+
 pub enum GCode {
     Comment(String),
     G0(Move),
@@ -51,8 +63,28 @@ pub enum GCode {
     M03
 }
 
+fn print_modified_axis(buf: &mut String, prefix: &str, before: f64, after: f64) -> Result<(), Error> {
+    if (before - after).abs() < 10e-15 {
+        Ok(())
+    }
+    else {
+       buf.write_fmt(format_args!("{}{:.3}", prefix, after))
+    }
+}
+
+fn print_modified_pos(buf: &mut String, before: &Move, after: &Move) -> Result<(), Error> {
+    print_modified_axis(buf, "X", before.x, after.x)?;
+    print_modified_axis(buf, "Y", before.y, after.y)?;
+    print_modified_axis(buf, "Z", before.z, after.z)?;
+    print_modified_axis(buf, "A", before.a, after.a)?;
+    print_modified_axis(buf, "B", before.b, after.b)?;
+    Ok(())
+}
+
 fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Error> {
     let mut before = &GCode::M02;
+    let mut before_pos = &Move::nowhere();
+    let mut before_feed_rate = -1.0;
     for gcode in gcodes {
         match gcode {
             GCode::Comment(comment) => {
@@ -68,23 +100,18 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
             },
             GCode::G0(m) => {
                 match before {
-                    GCode::G0(_) => {
-                    },
+                    GCode::G0(_) => {},
                     _ => {buf.write_fmt(format_args!("G0 "))?;}
                 }
-                buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}\n",
-                        m.x + cfg.offsets.x,
-                        m.y + cfg.offsets.y,
-                        m.z + cfg.offsets.z,
-                        m.a + cfg.offsets.a,
-                        m.b + cfg.offsets.b,
-                ))?;
+                print_modified_pos(buf, before_pos, m)?;
+                buf.write_str("\n")?;
                 before = gcode;
+                before_pos = m;
             },
-            GCode::G1(m, frate_now) => {
+            GCode::G1(m, feed_rate) => {
                 match before {
-                    GCode::G1(_, frate_before) => {
-                        if frate_now != frate_before {
+                    GCode::G1(_, _) => {
+                        if *feed_rate != before_feed_rate {
                             buf.write_fmt(format_args!("G1 "))?;
                         }
                     },
@@ -92,15 +119,12 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
                         buf.write_fmt(format_args!("G1 "))?;
                     }
                 }
-                buf.write_fmt(format_args!("X{:.3}Y{:.3}Z{:.3}A{:.3}B{:.3}F{:.3}\n",
-                        m.x + cfg.offsets.x,
-                        m.y + cfg.offsets.y,
-                        m.z + cfg.offsets.z,
-                        m.a + cfg.offsets.a,
-                        m.b + cfg.offsets.b,
-                        frate_now
-                ))?;
+                print_modified_pos(buf, before_pos, m)?;
+                print_modified_axis(buf, "F", before_feed_rate, *feed_rate)?;
+                buf.write_str("\n")?;
                 before = gcode;
+                before_pos = m;
+                before_feed_rate = *feed_rate;
             },
         }
     }
