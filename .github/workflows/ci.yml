@@ -59,3 +59,11 @@ jobs:
           command: build
           args: --release --target=${{ matrix.target }}
           use-cross: true
+
+      - run: |
+          zip --junk-paths canorus-${{ matrix.target }} target/${{ matrix.target }}/release/canorus{,.exe}
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: build-${{ matrix.target }}
+          path: canorus-${{ matrix.target }}.zip
