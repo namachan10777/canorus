@@ -31,6 +31,11 @@ fn main() {
             .short("v")
             .long("verbose")
             .takes_value(false))
+        .arg(clap::Arg::with_name("LICENSE")
+            .help("print license")
+            .required(false)
+            .long("license")
+            .takes_value(false))
         .get_matches();
     let mut buf = String::new();
     let mut config_file = match fs::File::open(matches.value_of("CONFIG").unwrap()) {
@@ -53,6 +58,10 @@ fn main() {
             process::exit(-1)
         },
     };
+    if matches.is_present("LICENSE") {
+        println!("{}", canorus::license::LICENSE);
+        process::exit(-1)
+    }
     step_file.read_to_string(&mut buf).unwrap();
     let out = canorus::parse(&buf, &cfg);
     match out {

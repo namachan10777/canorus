@@ -3,6 +3,7 @@ mod parser;
 mod analysis;
 mod math;
 mod backend;
+pub mod license;
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
