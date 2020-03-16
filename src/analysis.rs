@@ -40,14 +40,19 @@ fn align(mat: &Mat3x3, ax: &Axis) -> Axis {
 }
 
 // TODO: robustize
-fn get_size_and_origin(axes: &[Axis]) -> (V3, V3) {
+fn get_size_and_origin(axes: &(V3, V3, V3), plane_axes: &[Axis]) -> (V3, V3) {
     let mut mins = [1_000_000.0;3];
     let mut maxs = [0.0;3];
-    for ax in axes {
-        for i in 0..3 {
-            let v = ax.direction.0[i].abs() * ax.p.0[i];
-            mins[i] = if mins[i] > v { v } else { mins[i] };
-            maxs[i] = if maxs[i] < v { v } else { maxs[i] };
+    let (x_ax, y_ax, z_ax) = axes;
+    for ax in plane_axes {
+        let lengthes = [
+            ax.p.dot(x_ax),
+            ax.p.dot(y_ax),
+            ax.p.dot(z_ax),
+        ];
+        for i in 0..lengthes.len() {
+            mins[i] = if lengthes[i] < mins[i] { lengthes[i] } else { mins[i] };
+            maxs[i] = if lengthes[i] > maxs[i] { lengthes[i] } else { maxs[i] };
         }
     }
     let size = V3([
@@ -120,13 +125,13 @@ fn get_axes <'a>(axes: &'a [&'a Axis]) -> (V3, V3, V3) {
     let mut z_ax = V3::default();
     for (v, cnt) in map.iter() {
         if *cnt == 2 {
-            z_ax = v.clone();
+            z_ax = v.normalize();
         }
         else if x_ax == V3::default() {
-            x_ax = v.clone();
+            x_ax = v.normalize();
         }
         else {
-            y_ax = v.clone();
+            y_ax = v.normalize();
         }
     }
     (x_ax, y_ax, z_ax)
@@ -164,13 +169,17 @@ impl Proc {
                     FaceElement::Cylinder(_, _) => None
                 })
             .collect::<Vec<&Axis>>();
-        let (_, _, ax_z) = get_axes(plane_axes.as_slice());
+        let (ax_x, ax_y, ax_z) = get_axes(plane_axes.as_slice());
         let r_mat = get_align_mat(&ax_z);
+        let ax_x = r_mat.prod_vec(&ax_x);
+        let ax_y = r_mat.prod_vec(&ax_y);
+        let ax_z = r_mat.prod_vec(&ax_z);
+        let axes = (ax_x, ax_y, ax_z);
         let plane_axes =
             plane_axes.iter()
             .map(|ax| align(&r_mat, &ax))
             .collect::<Vec<Axis>>();
-        let (size, origin) = get_size_and_origin(plane_axes.as_slice());
+        let (size, origin) = get_size_and_origin(&axes, plane_axes.as_slice());
         let cylinders : Vec<(f64, Axis)> =
             faces.iter()
             .filter_map(

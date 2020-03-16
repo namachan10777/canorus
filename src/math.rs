@@ -72,6 +72,19 @@ impl V3 {
         && (self.z() - v.z()).abs() < 10e-15
     }
 
+    pub fn norm(&self) -> f64 {
+        (self.x().powi(2) + self.y().powi(2) + self.z().powi(2)).sqrt()
+    }
+
+    pub fn normalize(&self) -> Self {
+        let norm = self.norm();
+        V3([
+            self.x() / norm,
+            self.y() / norm,
+            self.z() / norm,
+        ])
+    }
+
     pub fn x(&self) -> f64 {
         self.0[0]
     }
