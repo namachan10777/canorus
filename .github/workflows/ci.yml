@@ -63,4 +63,4 @@ jobs:
       - uses: actions/upload-artifact@v1
         with:
           name: canorus-${{ matrix.target }}
-          path: canorus{,.exe}
+          path: target/${{ matrix.target }}/release/canorus{,.exe}
