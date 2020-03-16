@@ -13,6 +13,7 @@ pub struct Proc {
     pub drills: Vec<Drill>,
     pub center: V3,
     pub size: V3,
+    pub report: String,
 }
 
 fn get_align_mat(y_axis: &V3) -> Mat3x3 {
@@ -188,10 +189,12 @@ impl Proc {
                     _ => None,
                 })
             .collect();
+        let report = format!("size: ({}, {}, {})\norigin: ({}, {}, {})", size.x(), size.y(), size.z(), origin.x(), origin.y(), origin.z());
         Proc {
             size,
             center: origin.clone(),
             drills: cylinders_to_drills(&origin, cylinders.as_slice()),
+            report,
         }
     }
 }

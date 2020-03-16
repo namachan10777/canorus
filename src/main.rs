@@ -25,6 +25,12 @@ fn main() {
             .short("o")
             .long("output")
             .takes_value(true))
+        .arg(clap::Arg::with_name("VERBOSE")
+            .help("print report")
+            .required(false)
+            .short("v")
+            .long("verbose")
+            .takes_value(false))
         .get_matches();
     let mut buf = String::new();
     let mut config_file = match fs::File::open(matches.value_of("CONFIG").unwrap()) {
@@ -48,15 +54,18 @@ fn main() {
         },
     };
     step_file.read_to_string(&mut buf).unwrap();
-    let gcode = canorus::parse(&buf, &cfg);
-    match gcode {
-        Ok(gcode) => {
+    let out = canorus::parse(&buf, &cfg);
+    match out {
+        Ok((gcode, report)) => {
             if let Some(output) = matches.value_of("OUTPUT") {
                 let mut f = fs::File::create(output).unwrap();
                 f.write_all(gcode.as_bytes()).unwrap();
             }
             else {
                 println!("{}", gcode);
+            }
+            if matches.is_present("VERBOSE") {
+                println!("{}", report);
             }
         },
         Err(msg) => {

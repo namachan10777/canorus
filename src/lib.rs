@@ -14,7 +14,7 @@ use std::result::Result;
 
 pub type CNCConfig = backend::CNCConfig;
 
-pub fn parse(s: &str, cfg: &CNCConfig) -> Result<String, String> {
+pub fn parse(s: &str, cfg: &CNCConfig) -> Result<(String, String), String> {
     let (_, data) = parser::parse(s).map_err(
         |e| match e {
             parser::ParseError::DataParseError(msg) => {
@@ -29,5 +29,7 @@ pub fn parse(s: &str, cfg: &CNCConfig) -> Result<String, String> {
         }
     )?;
     let proc = analysis::Proc::new(&data);
-    backend::gen_gcode(proc, cfg).map_err(|_| "internal error".to_owned())
+    let report = proc.report.clone();
+    let gcode = backend::gen_gcode(proc, cfg).map_err(|_| "internal error".to_owned())?;
+    Ok((gcode, report))
 }
