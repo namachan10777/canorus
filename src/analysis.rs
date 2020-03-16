@@ -63,6 +63,39 @@ fn get_size_and_origin(axes: &[Axis]) -> (V3, V3) {
     (size, origin)
 }
 
+struct VecMap<V> {
+    inner: Vec<(V3, V)>,
+}
+
+impl<V> VecMap<V> {
+    fn new() -> Self {
+        VecMap {
+            inner: Vec::new(),
+        }
+    }
+
+    fn insert(&mut self, k: V3, v: V) {
+        for i in 0..self.inner.len() {
+            let (k_ref, _) = &self.inner[i];
+            if !k_ref.are_independent(&k) {
+                self.inner[i] = (k, v);
+                return
+            }
+        }
+        self.inner.push((k, v));
+    }
+
+    fn get(&self, k: &V3) -> Option<&V> {
+        for i in 0..self.inner.len() {
+            let (k_ref, v) = &self.inner[i];
+            if !k_ref.are_independent(&k) {
+                return Some(&v)
+            }
+        }
+        None
+    }
+}
+
 // 底面のaxisは線形従属なのは2本だけ
 // 側面はそれぞれ4本ある
 // 押出方向次第ではこの仮定も成り立たない?（そんな事は無い気もする）
@@ -135,5 +168,19 @@ impl Proc {
             center: origin.clone(),
             drills: cylinders_to_drills(&origin, cylinders.as_slice()),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_vecmap() {
+        let mut map = VecMap::new();
+        map.insert(V3([1.0, 0.0, 0.0]), 1);
+        map.insert(V3([0.0, 0.0, 1.0]), 2);
+        assert_eq!(map.get(&V3([3.0, 0.0, 0.0])), Some(&1));
+        assert_eq!(map.get(&V3([1.0, 0.0, 1.0])), None);
     }
 }
