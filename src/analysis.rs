@@ -94,27 +94,42 @@ impl<V> VecMap<V> {
         }
         None
     }
+
+    fn iter(&self) -> ::std::slice::Iter<(V3, V)> {
+        self.inner.iter()
+    }
 }
 
 // 底面のaxisは線形従属なのは2本だけ
 // 側面はそれぞれ4本ある
 // 押出方向次第ではこの仮定も成り立たない?（そんな事は無い気もする）
-fn get_y_axis <'a>(axes: &'a [&'a Axis]) -> V3 {
-    let mut cnts = vec![0; axes.len()];
-    for i in 0..axes.len() {
-        for j in 0..axes.len() {
-            if !axes[i].direction.are_independent(&axes[j].direction) {
-                cnts[i] += 1;
-            }
+// axes -> (x, y, z)
+fn get_axes <'a>(axes: &'a [&'a Axis]) -> (V3, V3, V3) {
+    let mut map = VecMap::new();
+    for ax in axes {
+        if let Some(cnt) = map.get(&ax.direction) {
+            let new_cnt = *cnt + 1;
+            map.insert(ax.direction.clone(), new_cnt);
+        }
+        else {
+            map.insert(ax.direction.clone(), 1);
         }
     }
-    let mut floor_axes = Vec::new();
-    for i in 0..axes.len() {
-        if cnts[i] <= 2 {
-            floor_axes.push(axes[i])
+    let mut x_ax = V3::default();
+    let mut y_ax = V3::default();
+    let mut z_ax = V3::default();
+    for (v, cnt) in map.iter() {
+        if *cnt == 2 {
+            z_ax = v.clone();
+        }
+        else if x_ax == V3::default() {
+            x_ax = v.clone();
+        }
+        else {
+            y_ax = v.clone();
         }
     }
-    floor_axes[0].direction.clone()
+    (x_ax, y_ax, z_ax)
 }
 
 fn cylinders_to_drills(orig: &V3, cylinders: &[(f64, Axis)]) -> Vec<Drill> {
@@ -138,6 +153,7 @@ fn cylinders_to_drills(orig: &V3, cylinders: &[(f64, Axis)]) -> Vec<Drill> {
     }
 }
 
+
 impl Proc {
     pub fn new(faces: &[AdvancedFace]) -> Self {
         let plane_axes=
@@ -148,8 +164,8 @@ impl Proc {
                     FaceElement::Cylinder(_, _) => None
                 })
             .collect::<Vec<&Axis>>();
-        let y_axis = get_y_axis(plane_axes.as_slice());
-        let r_mat = get_align_mat(&y_axis);
+        let (_, _, ax_z) = get_axes(plane_axes.as_slice());
+        let r_mat = get_align_mat(&ax_z);
         let plane_axes =
             plane_axes.iter()
             .map(|ax| align(&r_mat, &ax))
