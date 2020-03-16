@@ -55,7 +55,7 @@ fn parse_header(parsed_header: Vec<preprocess::Header>) -> Result<Header, ParseE
                     .tuple()
                     .ok_or_else(e)?
                     .iter()
-                    .map(|v| v.str().map(|s| s.clone()).ok_or_else(e))
+                    .map(|v| v.str().cloned().ok_or_else(e))
                     .collect::<Result<Vec<String>, ParseError>>()?;
                 header.implementation_level = args[1]
                     .str()
@@ -77,14 +77,14 @@ fn parse_header(parsed_header: Vec<preprocess::Header>) -> Result<Header, ParseE
                     .tuple()
                     .ok_or_else(e)?
                     .iter()
-                    .map(|v| v.str().map(|s| s.clone()).ok_or_else(e))
+                    .map(|v| v.str().cloned().ok_or_else(e))
                     .collect::<Result<Vec<String>, ParseError>>()?;
                 header.organization = args[3]
                     .clone()
                     .tuple()
                     .ok_or_else(e)?
                     .iter()
-                    .map(|v| v.str().map(|s| s.clone()).ok_or_else(e))
+                    .map(|v| v.str().cloned().ok_or_else(e))
                     .collect::<Result<Vec<String>, ParseError>>()?;
                 header.preprocessor_version = args[4]
                     .str()
@@ -105,7 +105,7 @@ fn parse_header(parsed_header: Vec<preprocess::Header>) -> Result<Header, ParseE
                     .tuple()
                     .ok_or_else(e)?
                     .iter()
-                    .map(|v| v.str().map(|s| s.clone()).ok_or_else(e))
+                    .map(|v| v.str().cloned().ok_or_else(e))
                     .collect::<Result<Vec<String>, ParseError>>()?
                     .clone();
             },
@@ -134,16 +134,10 @@ fn make_db(data: Vec<preprocess::Data>) -> HashMap<u64, preprocess::Data> {
 fn find_mechanical_design_geometric_presentation_representation_id(map: &DataDB) -> Result<u64, ParseError> {
     let e = || ParseError::DataParseError("MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION".to_string());
     for key in map.keys() {
-        match &map[key] {
-            preprocess::Data::Single(_, desc_name, _) => {
-                match desc_name.as_str() {
-                    "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" => {
-                        return Ok(*key);
-                    },
-                    _ => {},
-                }
-            },
-            _ => {},
+        if let preprocess::Data::Single(_, desc_name, _) = &map[key] {
+            if let "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" = desc_name.as_str() {
+                    return Ok(*key);
+            }
         }
     }
     Err(e())
@@ -154,15 +148,15 @@ fn get_styled_item_ids(map: &DataDB, id: u64) -> Result<Vec<u64>, ParseError> {
     match &map[&id] {
         preprocess::Data::Single(_, name, args) => {
             if name == "MECHANICAL_DESIGN_GEOMETRIC_PRESENTATION_REPRESENTATION" {
-                return args
+                args
                     .get(1)
                     .ok_or_else(e)?
                     .tuple()
                     .ok_or_else(e)?
                     .iter()
-                    .map(|id| id.id().map(|id| *id))
+                    .map(|id| id.id().copied())
                     .collect::<Option<Vec<u64>>>()
-                    .ok_or_else(e);
+                    .ok_or_else(e)
             }
             else {
                 Err(e())
@@ -177,11 +171,11 @@ fn get_manifold_solid_brep_id(map: &DataDB, id: u64) -> Result<u64, ParseError> 
     match &map[&id] {
         preprocess::Data::Single(_, name, args) => {
             if name == "STYLED_ITEM" {
-                return args
+                args
                     .get(2)
                     .ok_or_else(e)?
                     .id()
-                    .map(|id| * id)
+                    .copied()
                     .ok_or_else(e)
             }
             else {
@@ -197,11 +191,11 @@ fn get_closed_shell_id(map: &DataDB, id: u64) -> Result<u64, ParseError> {
     match &map[&id] {
         preprocess::Data::Single(_, name, args) => {
             if name == "MANIFOLD_SOLID_BREP" {
-                return args
+                args
                     .get(1)
                     .ok_or_else(e)?
                     .id()
-                    .map(|id| * id)
+                    .copied()
                     .ok_or_else(e)
             }
             else {
@@ -217,13 +211,13 @@ fn get_advanced_face_ids(map: &DataDB, id: u64) -> Result<Vec<u64>, ParseError> 
     match &map[&id] {
         preprocess::Data::Single(_, name, args) => {
             if name == "CLOSED_SHELL" {
-                return args
+                args
                     .get(1)
                     .ok_or_else(e)?
                     .tuple()
                     .ok_or_else(e)?
                     .iter()
-                    .map(|id| id.id().map(|id| *id))
+                    .map(|id| id.id().copied())
                     .collect::<Option<Vec<u64>>>()
                     .ok_or_else(e)
             }
@@ -242,7 +236,7 @@ fn parse_direction(map: &DataDB, id: u64) -> Result<V3, ParseError> {
                 let scalars =
                     args.get(1).ok_or_else(e)?
                     .tuple().ok_or_else(e)?
-                    .iter().map(|x| x.float().map(|f| *f)).collect::<Option<Vec<f64>>>().ok_or_else(e)?;
+                    .iter().map(|x| x.float().copied()).collect::<Option<Vec<f64>>>().ok_or_else(e)?;
                 if scalars.len() == 3 {
                     Ok(V3 ([
                         scalars[0],
@@ -270,7 +264,7 @@ fn parse_cartesian_point(map: &DataDB, id: u64) -> Result<V3, ParseError> {
                 let scalars =
                     args.get(1).ok_or_else(e)?
                     .tuple().ok_or_else(e)?
-                    .iter().map(|x| x.float().map(|f| *f)).collect::<Option<Vec<f64>>>().ok_or_else(e)?;
+                    .iter().map(|x| x.float().copied()).collect::<Option<Vec<f64>>>().ok_or_else(e)?;
                 if scalars.len() == 3 {
                     Ok(V3 ([
                         scalars[0],
@@ -396,7 +390,7 @@ pub fn parse(s : &str) -> Result<(Header, Vec<AdvancedFace>), ParseError> {
                 }
             },
             preprocess::PreprocessError::InternalError => {
-                ParseError::PreprocessError(format!("internal parser error"))
+                ParseError::PreprocessError("internal parser error".to_owned())
             }
         })?;
     Ok((parse_header(parsed.header)?, parse_data(parsed.data)?))
@@ -461,6 +455,6 @@ mod test {
     #[test]
     fn test_parse_data() {
         let data = prepare_test_data();
-        parse_data(data.data);
+        parse_data(data.data).unwrap();
     }
 }

@@ -142,7 +142,7 @@ fn value(v: Pair<Rule>) -> Result<Value, PreprocessError> {
                         .peek()
                         .ok_or(PreprocessError::InternalError)?
                         .into_inner()
-                        .map(|v| value(v)).collect();
+                        .map(value).collect();
                     Ok(Value::Tuple(inner?))
                 },
                 Rule::xplicit => Ok(Value::Xplicit),
@@ -170,7 +170,7 @@ fn desc(d: Pair<Rule>) -> Result<(String, Vec<Value>), PreprocessError> {
                 .ok_or(PreprocessError::InternalError)?
                 .as_str();
             let args: Result<Vec<Value>,PreprocessError> = inner
-                .map(|v| value(v))
+                .map(value)
                 .collect();
             Ok((
                 name.to_string(),
@@ -185,7 +185,7 @@ fn header(h: Pair<Rule>) -> Result<Vec<Header>, PreprocessError> {
     match h.as_rule() {
         Rule::header => {
             let inner = h.into_inner();
-            inner.map(|v| desc(v)).collect()
+            inner.map(desc).collect()
         },
         _ => Err(PreprocessError::InternalError),
     }
@@ -216,7 +216,7 @@ fn data(d: Pair<Rule>) -> Result<Vec<Data>, PreprocessError> {
                     Rule::aggregate =>
                         right
                         .into_inner()
-                        .map(|d| desc(d))
+                        .map(desc)
                         .collect::<Result<Vec<(String, Vec<Value>)>, PreprocessError>>()
                         .map(|aggregated| Data::Aggregate(id, aggregated)),
                     _ => Err(PreprocessError::InternalError)
@@ -242,7 +242,7 @@ fn step(s: Pair<Rule>) -> Result<Step, PreprocessError> {
     }
 }
 
-pub fn parse<'a>(input: &'a str) -> Result<Step, PreprocessError> {
+pub fn parse(input: &str) -> Result<Step, PreprocessError> {
     let parsed: Result<Pairs<Rule>, PreprocessError> = StepParser::parse(Rule::step, input)
         .map_err(From::from);
     step(parsed?.peek().ok_or(PreprocessError::InternalError)?)

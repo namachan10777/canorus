@@ -81,7 +81,7 @@ fn print_modified_pos(buf: &mut String, before: &Move, after: &Move) -> Result<(
     Ok(())
 }
 
-fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Error> {
+fn output(buf: &mut String, gcodes: &[GCode]) -> Result<(), Error> {
     let mut before = &GCode::M02;
     let mut before_pos = &Move::nowhere();
     let mut before_feed_rate = -1.0;
@@ -111,7 +111,7 @@ fn output(buf: &mut String, cfg: &CNCConfig, gcodes: &[GCode]) -> Result<(), Err
             GCode::G1(m, feed_rate) => {
                 match before {
                     GCode::G1(_, _) => {
-                        if *feed_rate != before_feed_rate {
+                        if (*feed_rate - before_feed_rate).abs() > 10e-15 {
                             buf.write_fmt(format_args!("G1 "))?;
                         }
                     },
@@ -237,6 +237,6 @@ pub fn gen_gcode(proc: Proc, cfg: &CNCConfig) -> Result<String, Error> {
     }
     gcodes.push(GCode::M03);
     let mut buf = String::new();
-    output(&mut buf, cfg, &gcodes)?;
+    output(&mut buf, &gcodes)?;
     Ok(buf)
 }

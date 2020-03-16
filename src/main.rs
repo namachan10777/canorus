@@ -53,7 +53,7 @@ fn main() {
         Ok(gcode) => {
             if let Some(output) = matches.value_of("OUTPUT") {
                 let mut f = fs::File::create(output).unwrap();
-                f.write(gcode.as_bytes()).unwrap();
+                f.write_all(gcode.as_bytes()).unwrap();
             }
             else {
                 println!("{}", gcode);
